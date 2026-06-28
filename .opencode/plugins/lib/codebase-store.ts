@@ -37,7 +37,7 @@ export type SearchHit = {
   content: string
 }
 
-const baseDir = join(homedir(), ".moa", "codebase")
+const baseDir = join(homedir(), ".opencore", "codebase")
 
 const dbCache = new Map<string, any>()
 

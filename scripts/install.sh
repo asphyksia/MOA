@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# MOA installer (macOS/Linux) - makes MOA's agents (dev/chat) and plugins
+# opencore installer (macOS/Linux) - makes opencore's agents (dev/chat) and plugins
 # (memory, codebase, budget) available globally, so they show up in any
 # directory (Tab in the TUI), not just inside this project.
 #
@@ -12,8 +12,8 @@
 #
 # Flags:
 #   --disable-build   Also disable opencode's built-in `build` agent (off by
-#                     default - MOA does not touch your existing agents unless
-#                     you ask). `dev` is MOA's tuned replacement for `build`.
+#                     default - opencore does not touch your existing agents unless
+#                     you ask). `dev` is opencore's tuned replacement for `build`.
 
 set -euo pipefail
 
@@ -38,13 +38,13 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 SRC="$REPO_ROOT/.opencode"
 DEST="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 
-echo "MOA installer"
+echo "opencore installer"
 echo "  repo : $REPO_ROOT"
 echo "  dest : $DEST"
 echo
 
 if [ ! -d "$SRC" ]; then
-  echo "Source .opencode not found at $SRC. Run from the MOA repo." >&2
+  echo "Source .opencode not found at $SRC. Run from the opencore repo." >&2
   exit 1
 fi
 
@@ -62,7 +62,7 @@ for f in "$SRC"/agents/*.md; do
   echo "  + agents/$name"
 done
 
-# 2) Sync plugins (including lib/), clearing stale MOA files first.
+# 2) Sync plugins (including lib/), clearing stale opencore files first.
 echo "Syncing plugins..."
 for name in memory.ts codebase.ts budget.ts; do
   rm -f "$DEST/plugins/$name"
@@ -109,7 +109,7 @@ else
   echo "  + dependency already present"
 fi
 
-# 4) Merge MOA defaults into the global opencode.json using node (cross-platform,
+# 4) Merge opencore defaults into the global opencode.json using node (cross-platform,
 #    no jq dependency). Preserves existing keys; never overwrites provider/model.
 echo "Merging global opencode.json..."
 DISABLE_BUILD="$DISABLE_BUILD" CFG="$DEST/opencode.json" node - <<'NODE'
@@ -147,7 +147,7 @@ if (!("permission" in cfg)) {
   };
   console.log("  + hardened permission defaults");
 } else {
-  console.log("  - permission block already present - left as-is (MOA's hardened defaults NOT applied)");
+  console.log("  - permission block already present - left as-is (opencore's hardened defaults NOT applied)");
 }
 
 if (disableBuild) {
@@ -159,15 +159,15 @@ if (disableBuild) {
   console.log("  - left 'build' agent enabled (use --disable-build to disable it)");
 }
 
-// Add MOA's default MCP servers (only if not already present).
-const moaMcp = {
+// Add opencore's default MCP servers (only if not already present).
+const opencoreMcp = {
   context7: { type: "remote", url: "https://mcp.context7.com/mcp", enabled: true },
   gh_grep:  { type: "remote", url: "https://mcp.grep.app",         enabled: true },
 };
 cfg.mcp = cfg.mcp || {};
-for (const name of Object.keys(moaMcp)) {
+for (const name of Object.keys(opencoreMcp)) {
   if (!(name in cfg.mcp)) {
-    cfg.mcp[name] = moaMcp[name];
+    cfg.mcp[name] = opencoreMcp[name];
     console.log(`  + mcp server '${name}'`);
   } else {
     console.log(`  - mcp server '${name}' already present - left as-is`);
@@ -178,15 +178,15 @@ fs.writeFileSync(path, JSON.stringify(cfg, null, 2));
 console.log("  wrote " + path);
 NODE
 
-# --- Semantic search: write ~/.moa/embeddings.json for the chosen source ---
+# --- Semantic search: write ~/.opencore/embeddings.json for the chosen source ---
 # Read from a file (not just env) so the desktop app and daemon work too.
 echo "Configuring embeddings ($EMBEDDINGS)..."
-MOA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/../.moa"
-# XDG-aware but falls back to ~/.moa
+opencore_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/../.opencore"
+# XDG-aware but falls back to ~/.opencore
 if [ -n "${XDG_CONFIG_HOME:-}" ]; then
-  MOA_DIR="$HOME/.moa"
+  opencore_DIR="$HOME/.opencore"
 fi
-EMBED_FILE="$HOME/.moa/embeddings.json"
+EMBED_FILE="$HOME/.opencore/embeddings.json"
 if [ "$EMBEDDINGS" = "none" ]; then
   echo "  - keyword-only (BM25). Re-run with --embeddings=llama|ollama|cloud to enable semantic search."
 else
@@ -198,7 +198,7 @@ else
       url="http://127.0.0.1:8181/v1"
     fi
   fi
-  mkdir -p "$HOME/.moa"
+  mkdir -p "$HOME/.opencore"
   if [ -n "$EMBED_API_KEY" ]; then
     printf '{"baseUrl":"%s","model":"%s","apiKey":"%s"}\n' "$url" "$EMBED_MODEL" "$EMBED_API_KEY" > "$EMBED_FILE"
   else
@@ -214,7 +214,7 @@ else
 fi
 
 echo
-echo "Done. MOA is installed globally."
+echo "Done. opencore is installed globally."
 echo "Open 'opencode' from any directory and press Tab to switch between dev / chat."
 if [ "$DISABLE_BUILD" != "1" ]; then
   echo "Tip: re-run with --disable-build to hide the built-in 'build' agent."

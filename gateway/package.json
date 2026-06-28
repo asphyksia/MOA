@@ -1,11 +1,11 @@
 {
-  "name": "moa-gateway",
+  "name": "opencore-gateway",
   "version": "0.1.0",
   "private": true,
-  "description": "MOA Telegram gateway - talk to MOA (opencode) from Telegram, with pairing/allowlist security.",
+  "description": "opencore Telegram gateway - talk to opencore (opencode) from Telegram, with pairing/allowlist security.",
   "type": "module",
   "bin": {
-    "moa-gateway": "dist/index.js"
+    "opencore-gateway": "dist/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

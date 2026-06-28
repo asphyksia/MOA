@@ -52,12 +52,12 @@ export function loadConfig(): GatewayConfig {
 
   return {
     telegramToken,
-    port: Number(process.env.MOA_GATEWAY_PORT ?? 4099),
-    defaultAgent: parseAgent(process.env.MOA_GATEWAY_DEFAULT_AGENT),
-    workdir: process.env.MOA_GATEWAY_WORKDIR?.trim() || process.cwd(),
-    opencodeBin: process.env.MOA_OPENCODE_BIN?.trim() || undefined,
+    port: Number(process.env.opencore_GATEWAY_PORT ?? 4099),
+    defaultAgent: parseAgent(process.env.opencore_GATEWAY_DEFAULT_AGENT),
+    workdir: process.env.opencore_GATEWAY_WORKDIR?.trim() || process.cwd(),
+    opencodeBin: process.env.opencore_OPENCODE_BIN?.trim() || undefined,
   }
 }
 
 /** Where the gateway stores its state (pairing/allowlist). */
-export const stateDir = join(homedir(), ".moa", "gateway")
+export const stateDir = join(homedir(), ".opencore", "gateway")

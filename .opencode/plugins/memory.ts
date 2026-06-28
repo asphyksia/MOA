@@ -8,11 +8,11 @@ import {
 } from "./lib/memory-store"
 
 /**
- * MOA two-level memory plugin.
+ * opencore two-level memory plugin.
  *
  * Working memory = opencode's native session context (not handled here).
  * Long-term memory = persistent facts in SQLite + FTS5 at
- * ~/.moa/memory/memory.db, surviving across sessions and injected back into
+ * ~/.opencore/memory/memory.db, surviving across sessions and injected back into
  * context on compaction.
  *
  * V1 used JSONL; this version uses SQLite+FTS5 (full-text search via BM25)
@@ -30,7 +30,7 @@ import {
 export const MemoryPlugin: Plugin = async ({ client }) => {
   async function log(message: string) {
     try {
-      await client.app.log({ body: { service: "moa-memory", level: "info", message } })
+      await client.app.log({ body: { service: "opencore-memory", level: "info", message } })
     } catch {
       /* best-effort */
     }
@@ -105,7 +105,7 @@ export const MemoryPlugin: Plugin = async ({ client }) => {
       const facts = await topByImportance(5)
       if (facts.length === 0) return
       const block =
-        "## Long-term memory (MOA)\n" +
+        "## Long-term memory (opencore)\n" +
         "Persisted facts about the user/project to keep in mind:\n" +
         facts.map((f) => `- [${f.type}] ${f.text}`).join("\n")
       if (Array.isArray(output?.context)) output.context.push(block)

@@ -1,14 +1,14 @@
-# MOA (Mixture Of Agents)
+# opencore
 
 **A professional coding agent with a first-class conversational mode.**
 
-Built on [opencode](https://opencode.ai) as a dependency (not a fork), MOA adds dual-mode personalities, persistent memory, and intelligent codebase understanding through opencode's plugin system.
+Built on [opencode](https://opencode.ai) as a dependency (not a fork), opencore adds dual-mode personalities, persistent memory, and intelligent codebase understanding through opencode's plugin system.
 
 ---
 
-## What is MOA?
+## What is opencore?
 
-MOA gives you two agents in one:
+opencore gives you two agents in one:
 
 - **`dev` mode** — Professional coding assistant with broad permissions for actual development work
 - **`chat` mode** — Conversational helper, read-only by default, safe for exploration and questions
@@ -41,7 +41,7 @@ Switch between them anytime with `Tab`.
 - Model-agnostic: use any LLM you want (OpenAI, Anthropic, local models via Ollama)
 
 ### 🌐 Optional: Telegram Gateway
-- Talk to MOA from anywhere via Telegram
+- Talk to opencore from anywhere via Telegram
 - Runs as a local daemon or Docker container for 24/7 availability
 - Secure pairing system with admin controls
 
@@ -55,7 +55,7 @@ Switch between them anytime with `Tab`.
 
 ## Install
 
-The installer syncs MOA's agents and plugins into your global opencode config so they're available in any directory.
+The installer syncs opencore's agents and plugins into your global opencode config so they're available in any directory.
 
 ```powershell
 # Windows
@@ -120,4 +120,4 @@ scripts/
 └── install.sh          # macOS/Linux installer
 ```
 
-Runtime data (`~/.moa/`) lives outside the repo — memory, budget, codebase indexes.
+Runtime data (`~/.opencore/`) lives outside the repo — memory, budget, codebase indexes.

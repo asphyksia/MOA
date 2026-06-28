@@ -11,7 +11,7 @@ import {
 import { rankBySimilarity, reciprocalRankFusion } from "./hybrid"
 
 /**
- * SQLite + FTS5 storage layer for MOA long-term memory, with optional hybrid
+ * SQLite + FTS5 storage layer for opencore long-term memory, with optional hybrid
  * (keyword + semantic) search.
  *
  * Runs under Bun (opencode's plugin runtime), using the built-in `bun:sqlite`
@@ -34,7 +34,7 @@ export type Fact = {
   source?: string
 }
 
-const dir = join(homedir(), ".moa", "memory")
+const dir = join(homedir(), ".opencore", "memory")
 const dbPath = join(dir, "memory.db")
 const legacyJsonl = join(dir, "long-term.jsonl")
 

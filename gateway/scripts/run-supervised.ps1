@@ -1,13 +1,13 @@
-# MOA Gateway supervisor loop.
+# opencore Gateway supervisor loop.
 # Runs the gateway and restarts it on crash with exponential backoff.
-# Logs to ~/.moa/gateway/daemon.log. Writes its own PID for control scripts.
+# Logs to ~/.opencore/gateway/daemon.log. Writes its own PID for control scripts.
 #
 # Not meant to be called directly - use daemon.ps1 (install/start/stop/status).
 
 $ErrorActionPreference = "Stop"
 
 $gatewayDir = Split-Path -Parent $PSScriptRoot   # ...\gateway
-$stateDir = Join-Path $HOME ".moa\gateway"
+$stateDir = Join-Path $HOME ".opencore\gateway"
 $logFile = Join-Path $stateDir "daemon.log"
 $pidFile = Join-Path $stateDir "daemon.pid"
 

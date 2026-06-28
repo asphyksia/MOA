@@ -1,17 +1,17 @@
 /**
- * Embeddings client for MOA semantic search.
+ * Embeddings client for opencore semantic search.
  *
  * Talks to any OpenAI-compatible `/v1/embeddings` endpoint, so the same code
  * works with a local llama.cpp server (recommended default), Ollama, or a cloud
- * API. MOA stays agnostic to the source.
+ * API. opencore stays agnostic to the source.
  *
  * Config is read from (in order of precedence):
  *   1. Environment variables (good for CLI / shell launches):
- *        MOA_EMBED_BASE_URL  e.g. http://127.0.0.1:8181/v1
- *        MOA_EMBED_MODEL     e.g. harrier
- *        MOA_EMBED_API_KEY   optional (cloud)
- *        MOA_EMBED_QUERY_INSTRUCT  optional query instruction override
- *   2. A config file at ~/.moa/embeddings.json (good for the desktop app and
+ *        opencore_EMBED_BASE_URL  e.g. http://127.0.0.1:8181/v1
+ *        opencore_EMBED_MODEL     e.g. harrier
+ *        opencore_EMBED_API_KEY   optional (cloud)
+ *        opencore_EMBED_QUERY_INSTRUCT  optional query instruction override
+ *   2. A config file at ~/.opencore/embeddings.json (good for the desktop app and
  *      the daemon, which don't inherit your shell env):
  *        { "baseUrl": "...", "model": "...", "apiKey": "...", "queryInstruct": "..." }
  *
@@ -41,17 +41,17 @@ function loadConfig(): EmbedConfig {
   // File config (so the desktop app / daemon work without shell env).
   let file: Partial<EmbedConfig> = {}
   try {
-    const path = join(homedir(), ".moa", "embeddings.json")
+    const path = join(homedir(), ".opencore", "embeddings.json")
     if (existsSync(path)) file = JSON.parse(readFileSync(path, "utf8"))
   } catch {
     /* ignore malformed file */
   }
   const env = process.env
   return {
-    baseUrl: (env.MOA_EMBED_BASE_URL || file.baseUrl || "").replace(/\/+$/, ""),
-    model: env.MOA_EMBED_MODEL || file.model || "harrier",
-    apiKey: env.MOA_EMBED_API_KEY || file.apiKey || "",
-    queryInstruct: env.MOA_EMBED_QUERY_INSTRUCT || file.queryInstruct || DEFAULT_QUERY_INSTRUCT,
+    baseUrl: (env.opencore_EMBED_BASE_URL || file.baseUrl || "").replace(/\/+$/, ""),
+    model: env.opencore_EMBED_MODEL || file.model || "harrier",
+    apiKey: env.opencore_EMBED_API_KEY || file.apiKey || "",
+    queryInstruct: env.opencore_EMBED_QUERY_INSTRUCT || file.queryInstruct || DEFAULT_QUERY_INSTRUCT,
   }
 }
 

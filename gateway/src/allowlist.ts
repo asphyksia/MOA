@@ -14,7 +14,7 @@ import { stateDir } from "./config.js"
  * - Everyone else is rejected unless an admin approves them (future: /approve).
  * - Only allowlisted users can interact with the agent at all.
  *
- * State persists to ~/.moa/gateway/allowlist.json so pairing survives restarts.
+ * State persists to ~/.opencore/gateway/allowlist.json so pairing survives restarts.
  */
 
 interface StoreData {

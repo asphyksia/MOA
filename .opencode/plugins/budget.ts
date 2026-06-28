@@ -4,24 +4,24 @@ import { join } from "node:path"
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs"
 
 /**
- * MOA token budget plugin.
+ * opencore token budget plugin.
  *
  * Tracks token usage per day and warns as a configurable daily budget is
- * approached. State is persisted to ~/.moa/budget/<YYYY-MM-DD>.json so it
+ * approached. State is persisted to ~/.opencore/budget/<YYYY-MM-DD>.json so it
  * survives restarts.
  *
  * Configure via env vars:
- *   MOA_TOKEN_BUDGET   daily token budget (default: 1_000_000)
- *   MOA_BUDGET_WARN    warn threshold as a fraction 0..1 (default: 0.7)
+ *   opencore_TOKEN_BUDGET   daily token budget (default: 1_000_000)
+ *   opencore_BUDGET_WARN    warn threshold as a fraction 0..1 (default: 0.7)
  *
  * NOTE (V1): this is observational + warning only. It does not hard-stop the
  * session. Hard enforcement is a later step once we settle on UX.
  */
 
-const BUDGET = Number(process.env.MOA_TOKEN_BUDGET ?? 1_000_000)
-const WARN_AT = Number(process.env.MOA_BUDGET_WARN ?? 0.7)
+const BUDGET = Number(process.env.opencore_TOKEN_BUDGET ?? 1_000_000)
+const WARN_AT = Number(process.env.opencore_BUDGET_WARN ?? 0.7)
 
-const dir = join(homedir(), ".moa", "budget")
+const dir = join(homedir(), ".opencore", "budget")
 
 function today(): string {
   return new Date().toISOString().slice(0, 10)
@@ -72,7 +72,7 @@ export const BudgetPlugin: Plugin = async ({ client }) => {
 
   async function log(message: string, level: "info" | "warn" = "info") {
     try {
-      await client.app.log({ body: { service: "moa-budget", level, message } })
+      await client.app.log({ body: { service: "opencore-budget", level, message } })
     } catch {
       // logging is best-effort
     }

@@ -1,6 +1,6 @@
-# MOA Gateway
+# opencore Gateway
 
-Talk to MOA from Telegram. The gateway runs an `opencode serve` instance on
+Talk to opencore from Telegram. The gateway runs an `opencode serve` instance on
 localhost and bridges your Telegram messages to it, with pairing + allowlist
 security so only you can use it.
 
@@ -61,26 +61,26 @@ Telegram  <--outbound polling-->  gateway (this)  <--HTTP 127.0.0.1-->  opencode
 | `/plan` | Switch to read-only analysis mode |
 | `/new` | Start a fresh session |
 | `/status` | Show current mode + session state |
-| any text | Sent to MOA as a prompt in the current mode |
+| any text | Sent to opencore as a prompt in the current mode |
 
 ## Config (.env)
 
 | Var | Default | Notes |
 |-----|---------|-------|
 | `TELEGRAM_BOT_TOKEN` | — | required |
-| `MOA_GATEWAY_PORT` | `4099` | local opencode server port |
-| `MOA_GATEWAY_DEFAULT_AGENT` | `chat` | `chat` \| `dev` \| `plan` |
-| `MOA_GATEWAY_WORKDIR` | cwd | directory the agent operates in |
-| `MOA_OPENCODE_BIN` | auto | explicit path to opencode if needed |
+| `opencore_GATEWAY_PORT` | `4099` | local opencode server port |
+| `opencore_GATEWAY_DEFAULT_AGENT` | `chat` | `chat` \| `dev` \| `plan` |
+| `opencore_GATEWAY_WORKDIR` | cwd | directory the agent operates in |
+| `opencore_OPENCODE_BIN` | auto | explicit path to opencode if needed |
 
-State (pairing/allowlist) persists to `~/.moa/gateway/allowlist.json`.
+State (pairing/allowlist) persists to `~/.opencore/gateway/allowlist.json`.
 
 ## Daemon (run at logon, auto-restart)
 
 Once you've confirmed manual mode works, run it as a background daemon. On
 Windows this uses the per-user Startup folder (no admin required) plus a
 supervisor that restarts the gateway on crash. Logs go to
-`~/.moa/gateway/daemon.log`.
+`~/.opencore/gateway/daemon.log`.
 
 ```powershell
 npm run build                                                         # compile to dist/
@@ -101,20 +101,20 @@ powershell -ExecutionPolicy Bypass -File scripts\daemon.ps1 uninstall # remove f
 
 ## Docker (24/7 on a server/VPS)
 
-For availability independent of your PC, run MOA in a container. The image
-(repo root `Dockerfile`) bundles opencode + MOA's config + this gateway.
+For availability independent of your PC, run opencore in a container. The image
+(repo root `Dockerfile`) bundles opencode + opencore's config + this gateway.
 
 ```sh
 # from the repo root
-cp .env.docker.example .env     # set TELEGRAM_BOT_TOKEN, MOA_MODEL, provider key
+cp .env.docker.example .env     # set TELEGRAM_BOT_TOKEN, opencore_MODEL, provider key
 docker compose up -d --build
 docker compose logs -f          # find the pairing code, then /pair in Telegram
 ```
 
 - `restart: unless-stopped` keeps it alive across crashes/reboots.
-- State (long-term memory, pairing) persists in the `moa-state` volume.
+- State (long-term memory, pairing) persists in the `opencore-state` volume.
 - No inbound ports are published - Telegram is reached via outbound polling.
-- Default agent is `chat` (no shell). Set `MOA_GATEWAY_DEFAULT_AGENT=dev` only
+- Default agent is `chat` (no shell). Set `opencore_GATEWAY_DEFAULT_AGENT=dev` only
   if you accept remote code execution inside the container.
 - To let the agent work on a project, mount it at `/work` (see the commented
   volume in `docker-compose.yml`).

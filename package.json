@@ -1,8 +1,8 @@
 {
-  "name": "moa",
+  "name": "opencore",
   "version": "0.1.0",
   "private": true,
-  "description": "MOA — a professional coding agent with a first-class conversational mode, built on opencode.",
+  "description": "opencore — a professional coding agent with a first-class conversational mode, built on opencode.",
   "type": "module",
   "scripts": {
     "start": "opencode",

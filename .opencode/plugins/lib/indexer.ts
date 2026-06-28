@@ -56,7 +56,7 @@ const SKIP_DIRS = new Set([
   ".turbo",
   ".cache",
   "coverage",
-  ".moa",
+  ".opencore",
   "vendor",
   "__pycache__",
   ".venv",

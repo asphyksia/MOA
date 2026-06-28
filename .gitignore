@@ -4,9 +4,9 @@ node_modules/
 # opencode runtime/cache
 .opencode/auth.json
 
-# MOA local data (long-term memory, budget) lives in ~/.moa, but ignore any
+# opencore local data (long-term memory, budget) lives in ~/.opencore, but ignore any
 # stray local copies just in case
-.moa/
+.opencore/
 
 # internal dev notes (not for public repo)
 PROGRESS.md

@@ -1,4 +1,4 @@
-# MOA installer - makes MOA's agents (dev/chat) and plugins (memory, codebase,
+# opencore installer - makes opencore's agents (dev/chat) and plugins (memory, codebase,
 # budget) available globally, so they show up in any directory (Tab in the TUI),
 # not just inside this project.
 #
@@ -11,12 +11,12 @@
 #
 # Flags:
 #   -DisableBuild   Also disable opencode's built-in `build` agent (off by
-#                   default - MOA does not touch your existing agents unless
-#                   you ask). `dev` is MOA's tuned replacement for `build`.
+#                   default - opencore does not touch your existing agents unless
+#                   you ask). `dev` is opencore's tuned replacement for `build`.
 
 param(
   [switch]$DisableBuild,
-  # Embedding source for semantic search. Writes ~/.moa/embeddings.json so the
+  # Embedding source for semantic search. Writes ~/.opencore/embeddings.json so the
   # CLI, desktop app, and daemon all use it.
   #   llama   = local llama.cpp server (recommended) at -EmbedUrl
   #   ollama  = local Ollama at -EmbedUrl (default http://127.0.0.1:11434/v1)
@@ -35,13 +35,13 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $src = Join-Path $repoRoot ".opencode"
 $dest = Join-Path $HOME ".config\opencode"
 
-Write-Host "MOA installer"
+Write-Host "opencore installer"
 Write-Host "  repo : $repoRoot"
 Write-Host "  dest : $dest"
 Write-Host ""
 
 if (-not (Test-Path $src)) {
-  throw "Source .opencode not found at $src. Run from the MOA repo."
+  throw "Source .opencode not found at $src. Run from the opencore repo."
 }
 
 # Ensure destination dirs exist.
@@ -65,7 +65,7 @@ Get-ChildItem (Join-Path $src "agents") -Filter *.md | ForEach-Object {
 # 2) Sync plugins (including lib/).
 Write-Host "Syncing plugins..."
 $destPlugins = Join-Path $dest "plugins"
-# Remove previously-synced MOA plugin files to avoid stale leftovers, but leave
+# Remove previously-synced opencore plugin files to avoid stale leftovers, but leave
 # any unrelated user plugins untouched.
 foreach ($name in @("memory.ts", "codebase.ts", "budget.ts")) {
   $p = Join-Path $destPlugins $name
@@ -123,7 +123,7 @@ if (-not (Test-Path (Join-Path $dest "node_modules\@opencode-ai\plugin"))) {
   Write-Host "  + dependency already present"
 }
 
-# 4) Merge MOA defaults into the global opencode.json, preserving existing keys
+# 4) Merge opencore defaults into the global opencode.json, preserving existing keys
 #    (e.g. your provider config). Only fills in agent defaults / permissions if
 #    absent, and NEVER overwrites your provider/model.
 Write-Host "Merging global opencode.json..."
@@ -180,10 +180,10 @@ if (-not $cfg.Contains("permission")) {
   }
   Write-Host "  + hardened permission defaults"
 } else {
-  Write-Host "  - permission block already present - left as-is (MOA's hardened defaults NOT applied)" -ForegroundColor Yellow
+  Write-Host "  - permission block already present - left as-is (opencore's hardened defaults NOT applied)" -ForegroundColor Yellow
 }
 
-# Optionally disable the built-in `build` agent (opt-in). `dev` is MOA's tuned
+# Optionally disable the built-in `build` agent (opt-in). `dev` is opencore's tuned
 # replacement, but we don't touch the user's agents unless asked.
 if ($DisableBuild) {
   if (-not $cfg.Contains("agent")) { $cfg["agent"] = [ordered]@{} }
@@ -194,16 +194,16 @@ if ($DisableBuild) {
   Write-Host "  - left 'build' agent enabled (use -DisableBuild to disable it)"
 }
 
-# Add MOA's default MCP servers (only if a server of that name isn't already
+# Add opencore's default MCP servers (only if a server of that name isn't already
 # present). These are remote, no-auth, coding-focused servers.
-$moaMcp = [ordered]@{
+$opencoreMcp = [ordered]@{
   context7 = [ordered]@{ type = "remote"; url = "https://mcp.context7.com/mcp"; enabled = $true }
   gh_grep  = [ordered]@{ type = "remote"; url = "https://mcp.grep.app";         enabled = $true }
 }
 if (-not $cfg.Contains("mcp")) { $cfg["mcp"] = [ordered]@{} }
-foreach ($name in $moaMcp.Keys) {
+foreach ($name in $opencoreMcp.Keys) {
   if (-not $cfg["mcp"].Contains($name)) {
-    $cfg["mcp"][$name] = $moaMcp[$name]
+    $cfg["mcp"][$name] = $opencoreMcp[$name]
     Write-Host "  + mcp server '$name'"
   } else {
     Write-Host "  - mcp server '$name' already present - left as-is"
@@ -213,11 +213,11 @@ foreach ($name in $moaMcp.Keys) {
 $cfg | ConvertTo-Json -Depth 20 | Set-Content $globalCfgPath -Encoding utf8
 Write-Host "  wrote $globalCfgPath"
 
-# --- Semantic search: write ~/.moa/embeddings.json for the chosen source ---
+# --- Semantic search: write ~/.opencore/embeddings.json for the chosen source ---
 # Read from a file (not just env) so the desktop app and daemon work too.
 Write-Host "Configuring embeddings ($Embeddings)..."
-$moaDir = Join-Path $HOME ".moa"
-$embedFile = Join-Path $moaDir "embeddings.json"
+$opencoreDir = Join-Path $HOME ".opencore"
+$embedFile = Join-Path $opencoreDir "embeddings.json"
 if ($Embeddings -eq "none") {
   Write-Host "  - keyword-only (BM25). Re-run with -Embeddings llama|ollama|cloud to enable semantic search."
 } else {
@@ -227,7 +227,7 @@ if ($Embeddings -eq "none") {
   }
   $embedCfg = [ordered]@{ baseUrl = $url; model = $EmbedModel }
   if ($EmbedApiKey) { $embedCfg["apiKey"] = $EmbedApiKey }
-  New-Item -ItemType Directory -Force -Path $moaDir | Out-Null
+  New-Item -ItemType Directory -Force -Path $opencoreDir | Out-Null
   $embedCfg | ConvertTo-Json | Set-Content $embedFile -Encoding utf8
   Write-Host "  + wrote $embedFile (baseUrl=$url model=$EmbedModel)"
   if ($Embeddings -eq "llama") {
@@ -239,7 +239,7 @@ if ($Embeddings -eq "none") {
 }
 
 Write-Host ""
-Write-Host "Done. MOA is installed globally."
+Write-Host "Done. opencore is installed globally."
 Write-Host "Open 'opencode' from any directory and press Tab to switch between dev / chat."
 if (-not $DisableBuild) {
   Write-Host "Tip: re-run with -DisableBuild to hide the built-in 'build' agent."

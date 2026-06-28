@@ -4,7 +4,7 @@ import { Allowlist } from "./allowlist.js"
 import { OpencodeService } from "./opencode-service.js"
 
 /**
- * MOA Telegram gateway entry point.
+ * opencore Telegram gateway entry point.
  *
  * Security:
  * - Only allowlisted Telegram users can interact at all.
@@ -21,9 +21,9 @@ async function main() {
   const allow = new Allowlist()
   const oc = new OpencodeService(cfg)
 
-  console.log("[moa-gateway] starting opencode server...")
+  console.log("[opencore-gateway] starting opencode server...")
   await oc.start()
-  console.log(`[moa-gateway] opencode server healthy on 127.0.0.1:${cfg.port}`)
+  console.log(`[opencore-gateway] opencode server healthy on 127.0.0.1:${cfg.port}`)
 
   // Per-chat state: session id + current agent.
   const chats = new Map<number, { sessionId: string; agent: AgentName }>()
@@ -42,11 +42,11 @@ async function main() {
   if (!allow.hasAdmin) {
     const code = allow.ensurePairingCode()
     console.log("\n========================================")
-    console.log("  MOA Gateway pairing code:  " + code)
+    console.log("  opencore Gateway pairing code:  " + code)
     console.log("  In Telegram, send:  /pair " + code)
     console.log("========================================\n")
   } else {
-    console.log("[moa-gateway] admin already paired; ready.")
+    console.log("[opencore-gateway] admin already paired; ready.")
   }
 
   const bot = new Bot(cfg.telegramToken)
@@ -55,10 +55,10 @@ async function main() {
   bot.command("start", async (ctx) => {
     const uid = ctx.from?.id
     if (uid && allow.isAuthorized(uid)) {
-      await ctx.reply("MOA is ready. Send a message, or use /chat, /dev, /plan, /new, /status.")
+      await ctx.reply("opencore is ready. Send a message, or use /chat, /dev, /plan, /new, /status.")
     } else {
       await ctx.reply(
-        "This is a private MOA gateway. If you control the host, send `/pair <code>` " +
+        "This is a private opencore gateway. If you control the host, send `/pair <code>` " +
           "using the code shown in the gateway console.",
       )
     }
@@ -76,7 +76,7 @@ async function main() {
     const result = allow.tryPair(uid, code)
     if (result === "ok") {
       await ctx.reply("Paired. You are now the admin. Default mode is chat. Send a message to begin.")
-      console.log(`[moa-gateway] paired admin: ${uid}`)
+      console.log(`[opencore-gateway] paired admin: ${uid}`)
     } else if (result === "already") {
       await ctx.reply("You are already authorized.")
     } else {
@@ -149,18 +149,18 @@ async function main() {
       // Telegram hard limit is 4096 chars per message.
       await ctx.reply(reply.slice(0, 4000))
     } catch (err: any) {
-      console.error("[moa-gateway] prompt error:", err?.message ?? err)
-      await ctx.reply("Error talking to MOA: " + (err?.message ?? "unknown"))
+      console.error("[opencore-gateway] prompt error:", err?.message ?? err)
+      await ctx.reply("Error talking to opencore: " + (err?.message ?? "unknown"))
     }
   })
 
   bot.catch((err) => {
-    console.error("[moa-gateway] bot error:", err.message)
+    console.error("[opencore-gateway] bot error:", err.message)
   })
 
   // Graceful shutdown
   const shutdown = () => {
-    console.log("\n[moa-gateway] shutting down...")
+    console.log("\n[opencore-gateway] shutting down...")
     oc.stop()
     process.exit(0)
   }
@@ -177,13 +177,13 @@ async function main() {
     { command: "pair", description: "Pair with a one-time code" },
   ])
 
-  console.log("[moa-gateway] starting Telegram bot (long-polling)...")
+  console.log("[opencore-gateway] starting Telegram bot (long-polling)...")
   await bot.start({
-    onStart: () => console.log("[moa-gateway] bot online. Default agent: " + cfg.defaultAgent),
+    onStart: () => console.log("[opencore-gateway] bot online. Default agent: " + cfg.defaultAgent),
   })
 }
 
 main().catch((err) => {
-  console.error("[moa-gateway] fatal:", err?.message ?? err)
+  console.error("[opencore-gateway] fatal:", err?.message ?? err)
   process.exit(1)
 })

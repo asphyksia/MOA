@@ -1,8 +1,8 @@
-# MOA Gateway daemon control (Windows, no admin required).
+# opencore Gateway daemon control (Windows, no admin required).
 #
 # Uses the per-user Startup folder so the gateway supervisor launches at logon
 # without administrator rights. The supervisor (run-supervised.ps1) keeps the
-# gateway alive with crash restart. Logs go to ~/.moa/gateway/daemon.log.
+# gateway alive with crash restart. Logs go to ~/.opencore/gateway/daemon.log.
 #
 # Usage:
 #   powershell -ExecutionPolicy Bypass -File scripts\daemon.ps1 install
@@ -22,10 +22,10 @@ $ErrorActionPreference = "Stop"
 
 $gatewayDir = Split-Path -Parent $PSScriptRoot
 $supervisor = Join-Path $gatewayDir "scripts\run-supervised.ps1"
-$stateDir = Join-Path $HOME ".moa\gateway"
+$stateDir = Join-Path $HOME ".opencore\gateway"
 $logFile = Join-Path $stateDir "daemon.log"
 $startupDir = [Environment]::GetFolderPath("Startup")
-$shortcut = Join-Path $startupDir "MOA Gateway.lnk"
+$shortcut = Join-Path $startupDir "opencore Gateway.lnk"
 $psExe = (Get-Command powershell.exe).Source
 $supervisorArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$supervisor`""
 
@@ -45,7 +45,7 @@ function Install-Daemon {
   $lnk.Arguments = $supervisorArgs
   $lnk.WorkingDirectory = $gatewayDir
   $lnk.WindowStyle = 7  # minimized
-  $lnk.Description = "MOA Gateway (Telegram) supervisor"
+  $lnk.Description = "opencore Gateway (Telegram) supervisor"
   $lnk.Save()
   Write-Host "Installed Startup shortcut: $shortcut"
   Write-Host "It will launch at logon. Start it now with: scripts\daemon.ps1 start"

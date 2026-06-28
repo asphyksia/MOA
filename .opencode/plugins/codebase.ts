@@ -13,7 +13,7 @@ import {
 import { discoverFiles, chunkFile, shouldIndex, isProjectRoot } from "./lib/indexer"
 
 /**
- * MOA codebase RAG plugin.
+ * opencore codebase RAG plugin.
  *
  * Indexes the active project's files into a per-project SQLite + FTS5 store and
  * exposes full-text search so the agent can answer "where is X handled?"
@@ -34,7 +34,7 @@ export const CodebasePlugin: Plugin = async ({ directory, worktree, $, client })
 
   async function log(message: string, level: "info" | "warn" = "info") {
     try {
-      await client.app.log({ body: { service: "moa-codebase", level, message } })
+      await client.app.log({ body: { service: "opencore-codebase", level, message } })
     } catch {
       /* best-effort */
     }
@@ -94,7 +94,7 @@ export const CodebasePlugin: Plugin = async ({ directory, worktree, $, client })
           if (!isProjectRoot(projectDir)) {
             return (
               "Current directory does not look like a project root (no .git, " +
-              "package.json, etc.), so it was not indexed. Open MOA from inside " +
+              "package.json, etc.), so it was not indexed. Open opencore from inside " +
               "a project to use codebase search."
             )
           }
@@ -128,7 +128,7 @@ export const CodebasePlugin: Plugin = async ({ directory, worktree, $, client })
             if (!isProjectRoot(projectDir)) {
               return (
                 "Current directory does not look like a project root, so there " +
-                "is no code index. Open MOA from inside a project to search code."
+                "is no code index. Open opencore from inside a project to search code."
               )
             }
             await log("no index yet — building lazily on first search")
