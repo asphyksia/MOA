@@ -1,0 +1,18 @@
+# dependencies
+node_modules/
+
+# opencode runtime/cache
+.opencode/auth.json
+
+# MOA local data (long-term memory, budget) lives in ~/.moa, but ignore any
+# stray local copies just in case
+.moa/
+
+# env
+.env
+.env.*
+!.env.example
+
+# OS noise
+Thumbs.db
+.DS_Store

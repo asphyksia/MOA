@@ -1,0 +1,19 @@
+{
+  "name": "moa",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MOA — a professional coding agent with a first-class conversational mode, built on opencode.",
+  "type": "module",
+  "scripts": {
+    "start": "opencode",
+    "dev": "opencode --agent dev",
+    "chat": "opencode --agent chat",
+    "check": "opencode --version"
+  },
+  "dependencies": {
+    "opencode-ai": "^1.17.11"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "^1.17.11"
+  }
+}
