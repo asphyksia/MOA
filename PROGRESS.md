@@ -63,6 +63,14 @@ GitHub: https://github.com/asphyksia/MOA
   `telegram:<chatId>` session on its own opencode serve. What they DO share:
   long-term memory (~/.moa/memory/memory.db is global) and codebase RAG (if same
   workdir). So: live conversation = separate; memory + code knowledge = shared.
+- **Gateway daemon (local, Windows)** — `gateway/scripts/daemon.ps1` +
+  `run-supervised.ps1`. Uses the per-user Startup folder (NO admin needed; Task
+  Scheduler required elevation which we don't have) + a supervisor that restarts
+  the gateway on crash (backoff, max 10/min). Commands: install/start/status/
+  logs/stop/uninstall. Logs to ~/.moa/gateway/daemon.log. Runs the compiled
+  dist/ build. VERIFIED end-to-end including crash auto-restart. Runs only while
+  logged in + PC on; for 24/7 independent of the machine, use the planned Docker
+  setup (deploy where opencode lives: local PC = daemon, VPS = Docker).
 
 ## Runtime facts
 
@@ -88,10 +96,9 @@ GitHub: https://github.com/asphyksia/MOA
 
 ## Next candidates (not started)
 
-- Telegram gateway Phase 3: wrap as auto-start daemon (Task Scheduler / systemd
-  / launchd) with logs + crash restart. Run manually first to confirm token.
-- Verify whether Telegram sessions sync/refresh into the desktop GUI (unverified;
-  likely shows after refresh since sessions persist to disk, but not live-mirror).
+- Gateway server deployment: Dockerfile + docker-compose (opencode + MOA +
+  gateway, restart policy) for 24/7 on a VPS - the production path. MOA installs
+  where opencode lives: local PC -> Startup daemon (done); VPS -> Docker (next).
 - Real-use testing of chat/dev (tone, memory recall, RAG).
 - Possible: more MCP servers, agentskills.io skills, embeddings (semantic
   search), image/voice tools.

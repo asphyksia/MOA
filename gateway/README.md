@@ -75,8 +75,33 @@ Telegram  <--outbound polling-->  gateway (this)  <--HTTP 127.0.0.1-->  opencode
 
 State (pairing/allowlist) persists to `~/.moa/gateway/allowlist.json`.
 
+## Daemon (run at logon, auto-restart)
+
+Once you've confirmed manual mode works, run it as a background daemon. On
+Windows this uses the per-user Startup folder (no admin required) plus a
+supervisor that restarts the gateway on crash. Logs go to
+`~/.moa/gateway/daemon.log`.
+
+```powershell
+npm run build                                                         # compile to dist/
+powershell -ExecutionPolicy Bypass -File scripts\daemon.ps1 install   # add to Startup
+powershell -ExecutionPolicy Bypass -File scripts\daemon.ps1 start     # start now
+powershell -ExecutionPolicy Bypass -File scripts\daemon.ps1 status    # check
+powershell -ExecutionPolicy Bypass -File scripts\daemon.ps1 logs      # tail logs
+powershell -ExecutionPolicy Bypass -File scripts\daemon.ps1 stop      # stop
+powershell -ExecutionPolicy Bypass -File scripts\daemon.ps1 uninstall # remove from Startup
+```
+
+- `install` adds a Startup shortcut so the gateway launches at logon.
+- The supervisor (`scripts\run-supervised.ps1`) restarts the gateway on crash
+  with backoff, up to 10 times per minute.
+- The gateway runs only while you are logged in and your PC is on. For 24/7
+  availability independent of your machine, deploy on a server (planned Docker
+  setup).
+
 ## Status
 
-Phases 1-2 complete and verified (server bridge, pairing, allowlist, agent
-commands). Phase 3 (auto-start daemon) is the next step — run the gateway
-manually first to confirm your token/pairing, then we wrap it as a service.
+Phases 1-3 complete and verified. The local daemon (Windows Startup + supervisor)
+was tested end-to-end: install / start / status / logs / crash auto-restart /
+stop / uninstall, all without admin rights. Next: Dockerfile + compose for
+server/VPS 24/7 deployment.
