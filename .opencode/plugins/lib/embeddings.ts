@@ -5,27 +5,60 @@
  * works with a local llama.cpp server (recommended default), Ollama, or a cloud
  * API. MOA stays agnostic to the source.
  *
- * Configure via env:
- *   MOA_EMBED_BASE_URL   e.g. http://127.0.0.1:8181/v1  (no trailing slash ok)
- *   MOA_EMBED_MODEL      e.g. harrier  (label; llama.cpp ignores it, cloud uses it)
- *   MOA_EMBED_API_KEY    optional (needed for cloud providers)
- *   MOA_EMBED_QUERY_INSTRUCT  optional override of the query instruction prefix
+ * Config is read from (in order of precedence):
+ *   1. Environment variables (good for CLI / shell launches):
+ *        MOA_EMBED_BASE_URL  e.g. http://127.0.0.1:8181/v1
+ *        MOA_EMBED_MODEL     e.g. harrier
+ *        MOA_EMBED_API_KEY   optional (cloud)
+ *        MOA_EMBED_QUERY_INSTRUCT  optional query instruction override
+ *   2. A config file at ~/.moa/embeddings.json (good for the desktop app and
+ *      the daemon, which don't inherit your shell env):
+ *        { "baseUrl": "...", "model": "...", "apiKey": "...", "queryInstruct": "..." }
  *
  * Design:
- * - If MOA_EMBED_BASE_URL is unset or a request fails, embed() returns null.
+ * - If no base URL is found, or a request fails, embed() returns null.
  *   Callers treat null as "no embeddings available" and fall back to BM25.
  * - harrier (and most instruct embedding models) want a one-sentence task
  *   instruction on QUERIES but not on documents. We apply it to queries only.
- * - Small in-memory LRU-ish cache avoids re-embedding identical query text.
+ * - Small in-memory cache avoids re-embedding identical query text.
  */
 
-const baseUrl = process.env.MOA_EMBED_BASE_URL?.replace(/\/+$/, "") || ""
-const model = process.env.MOA_EMBED_MODEL || "harrier"
-const apiKey = process.env.MOA_EMBED_API_KEY || ""
+import { homedir } from "node:os"
+import { join } from "node:path"
+import { readFileSync, existsSync } from "node:fs"
+
+interface EmbedConfig {
+  baseUrl: string
+  model: string
+  apiKey: string
+  queryInstruct: string
+}
 
 const DEFAULT_QUERY_INSTRUCT =
-  process.env.MOA_EMBED_QUERY_INSTRUCT ||
   "Instruct: Given a search query, retrieve relevant text that answers it\nQuery: "
+
+function loadConfig(): EmbedConfig {
+  // File config (so the desktop app / daemon work without shell env).
+  let file: Partial<EmbedConfig> = {}
+  try {
+    const path = join(homedir(), ".moa", "embeddings.json")
+    if (existsSync(path)) file = JSON.parse(readFileSync(path, "utf8"))
+  } catch {
+    /* ignore malformed file */
+  }
+  const env = process.env
+  return {
+    baseUrl: (env.MOA_EMBED_BASE_URL || file.baseUrl || "").replace(/\/+$/, ""),
+    model: env.MOA_EMBED_MODEL || file.model || "harrier",
+    apiKey: env.MOA_EMBED_API_KEY || file.apiKey || "",
+    queryInstruct: env.MOA_EMBED_QUERY_INSTRUCT || file.queryInstruct || DEFAULT_QUERY_INSTRUCT,
+  }
+}
+
+const cfg = loadConfig()
+const baseUrl = cfg.baseUrl
+const model = cfg.model
+const apiKey = cfg.apiKey
 
 export function embeddingsConfigured(): boolean {
   return baseUrl.length > 0
@@ -77,7 +110,7 @@ export async function embedQuery(text: string): Promise<number[] | null> {
   if (!embeddingsConfigured()) return null
   const cached = queryCache.get(text)
   if (cached) return cached
-  const res = await postEmbeddings([DEFAULT_QUERY_INSTRUCT + text])
+  const res = await postEmbeddings([cfg.queryInstruct + text])
   const vec = res?.[0] ?? null
   if (vec) {
     if (queryCache.size >= MAX_CACHE) {

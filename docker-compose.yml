@@ -6,6 +6,7 @@
 #        MOA_MODEL=anthropic/claude-...   # provider/model id
 #        ANTHROPIC_API_KEY=...         # whatever provider key your model needs
 #   2. docker compose up -d
+#      (add --profile embeddings to also run local semantic search)
 #   3. docker compose logs -f         # find the pairing code, /pair in Telegram
 #
 # The gateway reaches Telegram via outbound polling, so no inbound ports are
@@ -26,6 +27,10 @@ services:
       # Set to 'dev' only if you accept remote code execution in the container.
       MOA_GATEWAY_DEFAULT_AGENT: ${MOA_GATEWAY_DEFAULT_AGENT:-chat}
       MOA_GATEWAY_WORKDIR: /work
+      # Semantic search via the embeddings service below (when enabled).
+      # Leave unset to fall back to keyword-only (BM25).
+      MOA_EMBED_BASE_URL: ${MOA_EMBED_BASE_URL-http://embeddings:8181/v1}
+      MOA_EMBED_MODEL: ${MOA_EMBED_MODEL:-harrier}
     volumes:
       # Persist MOA state (long-term memory, gateway allowlist/pairing).
       - moa-state:/home/moa/.moa
@@ -33,5 +38,21 @@ services:
       # - ./my-project:/work
     # No ports exposed: Telegram is reached via outbound long-polling.
 
+  # Local embeddings for semantic search (harrier-oss-v1 via llama.cpp).
+  # Started only with: docker compose --profile embeddings up -d
+  # Omit the profile to run keyword-only (no embeddings container).
+  embeddings:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: moa-embeddings
+    restart: unless-stopped
+    profiles: ["embeddings"]
+    command: >
+      -hf SuperPauly/harrier-oss-v1-0.6b-gguf:Q8_0
+      --embedding --port 8181 --host 0.0.0.0
+    volumes:
+      - llama-models:/root/.cache/llama.cpp
+    # Internal only; reached by the gateway at http://embeddings:8181
+
 volumes:
   moa-state:
+  llama-models:

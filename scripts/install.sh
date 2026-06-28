@@ -18,9 +18,17 @@
 set -euo pipefail
 
 DISABLE_BUILD=0
+EMBEDDINGS=none          # none | llama | ollama | cloud
+EMBED_URL=""
+EMBED_MODEL=harrier
+EMBED_API_KEY=""
 for arg in "$@"; do
   case "$arg" in
     --disable-build) DISABLE_BUILD=1 ;;
+    --embeddings=*)  EMBEDDINGS="${arg#*=}" ;;
+    --embed-url=*)   EMBED_URL="${arg#*=}" ;;
+    --embed-model=*) EMBED_MODEL="${arg#*=}" ;;
+    --embed-api-key=*) EMBED_API_KEY="${arg#*=}" ;;
     *) echo "Unknown flag: $arg" >&2; exit 2 ;;
   esac
 done
@@ -169,6 +177,41 @@ for (const name of Object.keys(moaMcp)) {
 fs.writeFileSync(path, JSON.stringify(cfg, null, 2));
 console.log("  wrote " + path);
 NODE
+
+# --- Semantic search: write ~/.moa/embeddings.json for the chosen source ---
+# Read from a file (not just env) so the desktop app and daemon work too.
+echo "Configuring embeddings ($EMBEDDINGS)..."
+MOA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/../.moa"
+# XDG-aware but falls back to ~/.moa
+if [ -n "${XDG_CONFIG_HOME:-}" ]; then
+  MOA_DIR="$HOME/.moa"
+fi
+EMBED_FILE="$HOME/.moa/embeddings.json"
+if [ "$EMBEDDINGS" = "none" ]; then
+  echo "  - keyword-only (BM25). Re-run with --embeddings=llama|ollama|cloud to enable semantic search."
+else
+  url="$EMBED_URL"
+  if [ -z "$url" ]; then
+    if [ "$EMBEDDINGS" = "ollama" ]; then
+      url="http://127.0.0.1:11434/v1"
+    else
+      url="http://127.0.0.1:8181/v1"
+    fi
+  fi
+  mkdir -p "$HOME/.moa"
+  if [ -n "$EMBED_API_KEY" ]; then
+    printf '{"baseUrl":"%s","model":"%s","apiKey":"%s"}\n' "$url" "$EMBED_MODEL" "$EMBED_API_KEY" > "$EMBED_FILE"
+  else
+    printf '{"baseUrl":"%s","model":"%s"}\n' "$url" "$EMBED_MODEL" > "$EMBED_FILE"
+  fi
+  echo "  + wrote $EMBED_FILE (baseUrl=$url model=$EMBED_MODEL)"
+  if [ "$EMBEDDINGS" = "llama" ]; then
+    echo "  Start a local embedding server, e.g.:"
+    echo "    llama-server -hf SuperPauly/harrier-oss-v1-0.6b-gguf:Q8_0 --embedding --port 8181"
+  elif [ "$EMBEDDINGS" = "ollama" ]; then
+    echo "    ollama pull hf.co/SuperPauly/harrier-oss-v1-0.6b-gguf:Q8_0"
+  fi
+fi
 
 echo
 echo "Done. MOA is installed globally."

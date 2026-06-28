@@ -33,6 +33,20 @@ GitHub: https://github.com/asphyksia/MOA
   - lazy auto-index on first search; `file.edited` incremental re-index
   - project-root guard + MAX_FILES cap (fixes a hang in non-project dirs)
 - **Token budget plugin** (`.opencode/plugins/budget.ts`) — daily tracking + warn
+- **Hybrid semantic search** (`lib/embeddings.ts` + `lib/hybrid.ts`) — applied to
+  BOTH memory and codebase. BM25 + vector cosine fused via Reciprocal Rank Fusion.
+  Embeddings via any OpenAI-compatible `/v1/embeddings` endpoint (llama.cpp =
+  recommended local, Ollama, or cloud). Config read from `~/.moa/embeddings.json`
+  (so desktop app + daemon work, not just shell env) OR `MOA_EMBED_*` env vars.
+  Per-item Float32 BLOB vectors keyed by content hash + model id (incremental
+  re-embed only on change). FALLBACK: if no embeddings configured, transparently
+  uses BM25 as before — nothing breaks. Default model: harrier-oss-v1-0.6b Q8_0
+  (1024-dim, MTEB 69.0, MIT). VERIFIED end-to-end: a paraphrased query with no
+  shared words ('que lenguaje le gusta') retrieved 'prefiere TypeScript', and a
+  conceptual code query found the right file — both impossible with BM25 alone.
+  Installers write `~/.moa/embeddings.json` via -Embeddings / --embeddings flag.
+  Docker: optional `embeddings` service (ghcr.io/ggml-org/llama.cpp:server,
+  `--profile embeddings`).
 - **MCP servers** — configured under `mcp` in `opencode.json` (native opencode):
   `context7` (library docs) and `gh_grep` (GitHub code search), both remote/no-auth.
   Verified connected and usable by the agent.
@@ -83,7 +97,8 @@ GitHub: https://github.com/asphyksia/MOA
 
 - opencode CLI version 1.17.11; plugins run under **Bun** (so `bun:sqlite` + FTS5
   are available with no native build step).
-- Provider: `cavoti/claude-opus-4-8`, configured in global `~/.config/opencode/opencode.json`.
+- Provider: `cavoti` in global `~/.config/opencode/opencode.json`. Models:
+  `cavoti/claude-opus-4-8`, `cavoti/gpt-5.5`, `cavoti/gpt-5.5-pro`.
 - Local data lives in `~/.moa/` (memory, budget, codebase) — outside the repo.
 
 ## Key decisions / honest limits

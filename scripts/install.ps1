@@ -15,7 +15,18 @@
 #                   you ask). `dev` is MOA's tuned replacement for `build`.
 
 param(
-  [switch]$DisableBuild
+  [switch]$DisableBuild,
+  # Embedding source for semantic search. Writes ~/.moa/embeddings.json so the
+  # CLI, desktop app, and daemon all use it.
+  #   llama   = local llama.cpp server (recommended) at -EmbedUrl
+  #   ollama  = local Ollama at -EmbedUrl (default http://127.0.0.1:11434/v1)
+  #   cloud   = OpenAI-compatible API at -EmbedUrl with -EmbedApiKey
+  #   none    = keyword-only (BM25); no embeddings (default)
+  [ValidateSet("llama", "ollama", "cloud", "none")]
+  [string]$Embeddings = "none",
+  [string]$EmbedUrl = "",
+  [string]$EmbedModel = "harrier",
+  [string]$EmbedApiKey = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -201,6 +212,31 @@ foreach ($name in $moaMcp.Keys) {
 
 $cfg | ConvertTo-Json -Depth 20 | Set-Content $globalCfgPath -Encoding utf8
 Write-Host "  wrote $globalCfgPath"
+
+# --- Semantic search: write ~/.moa/embeddings.json for the chosen source ---
+# Read from a file (not just env) so the desktop app and daemon work too.
+Write-Host "Configuring embeddings ($Embeddings)..."
+$moaDir = Join-Path $HOME ".moa"
+$embedFile = Join-Path $moaDir "embeddings.json"
+if ($Embeddings -eq "none") {
+  Write-Host "  - keyword-only (BM25). Re-run with -Embeddings llama|ollama|cloud to enable semantic search."
+} else {
+  $url = $EmbedUrl
+  if (-not $url) {
+    $url = if ($Embeddings -eq "ollama") { "http://127.0.0.1:11434/v1" } else { "http://127.0.0.1:8181/v1" }
+  }
+  $embedCfg = [ordered]@{ baseUrl = $url; model = $EmbedModel }
+  if ($EmbedApiKey) { $embedCfg["apiKey"] = $EmbedApiKey }
+  New-Item -ItemType Directory -Force -Path $moaDir | Out-Null
+  $embedCfg | ConvertTo-Json | Set-Content $embedFile -Encoding utf8
+  Write-Host "  + wrote $embedFile (baseUrl=$url model=$EmbedModel)"
+  if ($Embeddings -eq "llama") {
+    Write-Host "  Start a local embedding server, e.g.:"
+    Write-Host "    llama-server -hf SuperPauly/harrier-oss-v1-0.6b-gguf:Q8_0 --embedding --port 8181"
+  } elseif ($Embeddings -eq "ollama") {
+    Write-Host "    ollama pull hf.co/SuperPauly/harrier-oss-v1-0.6b-gguf:Q8_0"
+  }
+}
 
 Write-Host ""
 Write-Host "Done. MOA is installed globally."
