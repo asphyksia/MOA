@@ -1,16 +1,28 @@
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { mkdirSync, readFileSync, existsSync, renameSync } from "node:fs"
+import { createHash } from "node:crypto"
+import {
+  embedDocuments,
+  embedQuery,
+  embeddingsConfigured,
+  embeddingModelId,
+} from "./embeddings"
+import { rankBySimilarity, reciprocalRankFusion } from "./hybrid"
 
 /**
- * SQLite + FTS5 storage layer for MOA long-term memory.
+ * SQLite + FTS5 storage layer for MOA long-term memory, with optional hybrid
+ * (keyword + semantic) search.
  *
  * Runs under Bun (opencode's plugin runtime), using the built-in `bun:sqlite`
- * with FTS5 — no native build step, no external dependency.
+ * with FTS5 - no native build step, no external dependency.
  *
- * A `facts` table holds the canonical rows; an FTS5 virtual table `facts_fts`
- * mirrors the searchable text and is kept in sync via triggers. Search uses
- * BM25 ranking, blended with the fact's `importance`.
+ * - `facts` table holds canonical rows; `facts_fts` mirrors searchable text
+ *   (BM25). A `vectors` table holds per-fact embeddings (Float32 BLOB) plus the
+ *   content hash and embedding model id, so we only re-embed when content or
+ *   model changes.
+ * - searchFacts fuses BM25 + cosine ranking via RRF. If embeddings are not
+ *   configured (or unavailable), it transparently falls back to BM25 only.
  */
 
 export type Fact = {
@@ -29,6 +41,21 @@ const legacyJsonl = join(dir, "long-term.jsonl")
 type DB = any
 
 let dbPromise: Promise<DB> | null = null
+
+function contentHash(text: string): string {
+  return createHash("sha256").update(text).digest("hex")
+}
+
+function toBlob(vec: number[]): Buffer {
+  return Buffer.from(new Float32Array(vec).buffer)
+}
+
+function fromBlob(buf: Buffer | Uint8Array | null): number[] | null {
+  if (!buf) return null
+  const b = Buffer.isBuffer(buf) ? buf : Buffer.from(buf)
+  const f = new Float32Array(b.buffer, b.byteOffset, Math.floor(b.byteLength / 4))
+  return Array.from(f)
+}
 
 async function openDb(): Promise<DB> {
   mkdirSync(dir, { recursive: true })
@@ -53,7 +80,6 @@ async function openDb(): Promise<DB> {
     USING fts5(text, type, content='facts', content_rowid='rowid')
   `)
 
-  // Keep the FTS index in sync with the facts table.
   db.run(`
     CREATE TRIGGER IF NOT EXISTS facts_ai AFTER INSERT ON facts BEGIN
       INSERT INTO facts_fts(rowid, text, type) VALUES (new.rowid, new.text, new.type);
@@ -71,11 +97,22 @@ async function openDb(): Promise<DB> {
     END
   `)
 
+  // Per-fact embeddings. `hash` = sha256(text), `model` = embedding model id.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS vectors (
+      fact_id TEXT PRIMARY KEY,
+      hash    TEXT NOT NULL,
+      model   TEXT NOT NULL,
+      dim     INTEGER NOT NULL,
+      vec     BLOB NOT NULL,
+      FOREIGN KEY (fact_id) REFERENCES facts(id) ON DELETE CASCADE
+    )
+  `)
+
   migrateLegacyJsonl(db)
   return db
 }
 
-/** One-time import of facts from the V1 JSONL store, then archive the file. */
 function migrateLegacyJsonl(db: DB) {
   if (!existsSync(legacyJsonl)) return
   try {
@@ -108,10 +145,9 @@ function migrateLegacyJsonl(db: DB) {
       }
     }
     if (rows.length) tx(rows)
-    // archive so we don't re-import on next boot
     renameSync(legacyJsonl, legacyJsonl + ".migrated")
   } catch {
-    /* best-effort migration; never block startup */
+    /* best-effort */
   }
 }
 
@@ -120,7 +156,6 @@ function db(): Promise<DB> {
   return dbPromise
 }
 
-/** Escape a user query into a safe FTS5 MATCH expression (prefix-OR of terms). */
 function toMatchExpr(query: string): string {
   const terms = query
     .toLowerCase()
@@ -135,36 +170,125 @@ export async function addFact(fact: Fact): Promise<void> {
   d.prepare(
     "INSERT OR REPLACE INTO facts (id, text, type, importance, createdAt, source) VALUES (?, ?, ?, ?, ?, ?)",
   ).run(fact.id, fact.text, fact.type, fact.importance, fact.createdAt, fact.source ?? null)
+  // Embed in the background; never block or throw on embedding failure.
+  void embedFact(fact.id, fact.text).catch(() => {})
 }
 
-export async function searchFacts(query: string, limit = 5): Promise<Fact[]> {
+/** Embed one fact if embeddings are configured and content/model changed. */
+async function embedFact(id: string, text: string): Promise<void> {
+  if (!embeddingsConfigured()) return
   const d = await db()
-  const expr = toMatchExpr(query)
-  if (!expr) return topByImportance(limit)
-  // bm25() returns lower = better; blend with importance (higher = better).
+  const hash = contentHash(text)
+  const model = embeddingModelId()
+  const existing = d.query("SELECT hash, model FROM vectors WHERE fact_id = ?").get(id) as
+    | { hash: string; model: string }
+    | undefined
+  if (existing && existing.hash === hash && existing.model === model) return
+  const vecs = await embedDocuments([text])
+  const vec = vecs?.[0]
+  if (!vec || vec.length === 0) return
+  d.prepare(
+    "INSERT OR REPLACE INTO vectors (fact_id, hash, model, dim, vec) VALUES (?, ?, ?, ?, ?)",
+  ).run(id, hash, model, vec.length, toBlob(vec))
+}
+
+/** Embed any facts that don't yet have an up-to-date vector. Returns count. */
+export async function backfillEmbeddings(limit = 500): Promise<number> {
+  if (!embeddingsConfigured()) return 0
+  const d = await db()
+  const model = embeddingModelId()
   const rows = d
     .query(
-      `
-      SELECT f.id, f.text, f.type, f.importance, f.createdAt, f.source
-      FROM facts_fts
-      JOIN facts f ON f.rowid = facts_fts.rowid
-      WHERE facts_fts MATCH ?
-      ORDER BY (bm25(facts_fts) - f.importance) ASC
-      LIMIT ?
-      `,
+      `SELECT f.id AS id, f.text AS text
+       FROM facts f
+       LEFT JOIN vectors v ON v.fact_id = f.id
+       WHERE v.fact_id IS NULL OR v.model != ?
+       LIMIT ?`,
     )
-    .all(expr, limit)
-  return rows as Fact[]
+    .all(model, limit) as Array<{ id: string; text: string }>
+  let n = 0
+  for (const r of rows) {
+    await embedFact(r.id, r.text)
+    n++
+  }
+  return n
+}
+
+function bm25Search(d: DB, query: string, limit: number): Fact[] {
+  const expr = toMatchExpr(query)
+  if (!expr) return []
+  return d
+    .query(
+      `SELECT f.id, f.text, f.type, f.importance, f.createdAt, f.source
+       FROM facts_fts
+       JOIN facts f ON f.rowid = facts_fts.rowid
+       WHERE facts_fts MATCH ?
+       ORDER BY (bm25(facts_fts) - f.importance) ASC
+       LIMIT ?`,
+    )
+    .all(expr, limit) as Fact[]
+}
+
+/**
+ * Hybrid search: fuse BM25 + semantic (cosine) rankings via RRF. Falls back to
+ * BM25 alone when embeddings are unavailable.
+ */
+export async function searchFacts(query: string, limit = 5): Promise<Fact[]> {
+  const d = await db()
+
+  // Keyword candidates (a wider pool so fusion has room to rerank).
+  const pool = Math.max(limit * 4, 20)
+  const bm25 = bm25Search(d, query, pool)
+
+  // Semantic ranking (only if embeddings configured + query embeds).
+  let semanticIds: string[] = []
+  if (embeddingsConfigured()) {
+    const qvec = await embedQuery(query)
+    if (qvec) {
+      const rows = d
+        .query("SELECT fact_id, vec FROM vectors")
+        .all() as Array<{ fact_id: string; vec: Uint8Array }>
+      if (rows.length > 0) {
+        const ids = rows.map((r) => r.fact_id)
+        const vecs = rows.map((r) => fromBlob(r.vec))
+        const ranked = rankBySimilarity(qvec, vecs, pool)
+        semanticIds = ranked.map((i) => ids[i])
+      }
+    }
+  }
+
+  // If no semantic signal, return BM25 as before.
+  if (semanticIds.length === 0) {
+    if (bm25.length > 0) return bm25.slice(0, limit)
+    return topByImportance(limit)
+  }
+
+  // Fuse rankings (RRF) and resolve back to facts.
+  const bm25Ids = bm25.map((f) => f.id)
+  const fusedIds = reciprocalRankFusion([bm25Ids, semanticIds], 60, limit)
+  return resolveFacts(d, fusedIds)
+}
+
+function resolveFacts(d: DB, ids: string[]): Fact[] {
+  if (ids.length === 0) return []
+  const out: Fact[] = []
+  const stmt = d.prepare(
+    "SELECT id, text, type, importance, createdAt, source FROM facts WHERE id = ?",
+  )
+  for (const id of ids) {
+    const row = stmt.get(id) as Fact | undefined
+    if (row) out.push(row)
+  }
+  return out
 }
 
 export async function topByImportance(limit = 5): Promise<Fact[]> {
   const d = await db()
-  const rows = d
+  return d
     .query(
       "SELECT id, text, type, importance, createdAt, source FROM facts ORDER BY importance DESC, createdAt DESC LIMIT ?",
     )
-    .all(limit)
-  return rows as Fact[]
+    .all(limit) as Fact[]
 }
 
 export async function countFacts(): Promise<number> {

@@ -1,5 +1,11 @@
 import { type Plugin, tool } from "@opencode-ai/plugin"
-import { addFact, searchFacts, topByImportance, type Fact } from "./lib/memory-store"
+import {
+  addFact,
+  searchFacts,
+  topByImportance,
+  backfillEmbeddings,
+  type Fact,
+} from "./lib/memory-store"
 
 /**
  * MOA two-level memory plugin.
@@ -29,6 +35,14 @@ export const MemoryPlugin: Plugin = async ({ client }) => {
       /* best-effort */
     }
   }
+
+  // Backfill embeddings for any facts missing an up-to-date vector (e.g. facts
+  // stored before semantic search was enabled, or after switching models).
+  void backfillEmbeddings()
+    .then((n) => {
+      if (n > 0) void log(`backfilled embeddings for ${n} fact(s)`)
+    })
+    .catch(() => {})
 
   return {
     tool: {

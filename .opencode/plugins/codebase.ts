@@ -8,6 +8,7 @@ import {
   stats,
   setMeta,
   getMeta,
+  backfillEmbeddings,
 } from "./lib/codebase-store"
 import { discoverFiles, chunkFile, shouldIndex, isProjectRoot } from "./lib/indexer"
 
@@ -67,6 +68,12 @@ export const CodebasePlugin: Plugin = async ({ directory, worktree, $, client })
     await setMeta(projectDir, "lastIndexed", new Date().toISOString())
     const s = await stats(projectDir)
     await log(`indexed ${indexed} files (${s.chunks} chunks) in ${projectDir}`)
+    // Embed chunks for semantic search (best-effort; no-op without embeddings).
+    void backfillEmbeddings(projectDir)
+      .then((n) => {
+        if (n > 0) void log(`embedded ${n} chunk(s) for semantic search`)
+      })
+      .catch(() => {})
     return s
   }
 
