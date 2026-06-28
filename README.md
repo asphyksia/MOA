@@ -100,6 +100,8 @@ Optional: set your preferred model via env (see `.env.example`).
 
 Add more MCP servers under `mcp` in `opencode.json`. Add more skills by creating `.opencode/skills/<name>/SKILL.md`.
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to create custom plugins, agents, or skills.
+
 ---
 
 ## Layout
@@ -121,3 +123,22 @@ scripts/
 ```
 
 Runtime data (`~/.opencore/`) lives outside the repo — memory, budget, codebase indexes.
+
+---
+
+## Compatibility
+
+opencore is built on **opencode `1.17.11`** with exact version pinning for stability.
+
+### Upgrading opencode
+
+Version upgrades are **manual and deliberate**. Before upgrading:
+
+1. Check the [opencode changelog](https://github.com/opencode-ai/opencode/releases) for breaking changes in the plugin API
+2. Test with `opencode --version` after upgrade
+3. Verify memory injection still works (it uses `experimental.session.compacting`)
+
+**Known experimental dependencies:**
+- `experimental.session.compacting` — memory injection hook (may change or be removed in future opencode versions)
+
+If a breaking change occurs, opencore's version pins ensure existing installs continue working. Upgrades will be tested and documented in releases.
