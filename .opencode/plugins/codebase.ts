@@ -57,6 +57,19 @@ export const CodebasePlugin: Plugin = async ({ directory, worktree, $, client })
     return true
   }
 
+  async function buildIndex(rebuild: boolean): Promise<{ files: number; chunks: number }> {
+    if (rebuild) await clearIndex(projectDir)
+    const files = await discoverFiles(projectDir, $)
+    let indexed = 0
+    for (const f of files) {
+      if (await reindexOne(f)) indexed++
+    }
+    await setMeta(projectDir, "lastIndexed", new Date().toISOString())
+    const s = await stats(projectDir)
+    await log(`indexed ${indexed} files (${s.chunks} chunks) in ${projectDir}`)
+    return s
+  }
+
   return {
     tool: {
       codebase_index: tool({
@@ -71,16 +84,8 @@ export const CodebasePlugin: Plugin = async ({ directory, worktree, $, client })
             .describe("If true, clear the existing index before reindexing."),
         },
         async execute(args) {
-          if (args.rebuild) await clearIndex(projectDir)
-          const files = await discoverFiles(projectDir, $)
-          let indexed = 0
-          for (const f of files) {
-            if (await reindexOne(f)) indexed++
-          }
-          await setMeta(projectDir, "lastIndexed", new Date().toISOString())
-          const s = await stats(projectDir)
-          await log(`indexed ${indexed} files (${s.chunks} chunks) in ${projectDir}`)
-          return `Indexed ${indexed} files into ${s.chunks} chunks for this project.`
+          const s = await buildIndex(!!args.rebuild)
+          return `Indexed ${s.files} files into ${s.chunks} chunks for this project.`
         },
       }),
 
@@ -100,12 +105,18 @@ export const CodebasePlugin: Plugin = async ({ directory, worktree, $, client })
         },
         async execute(args) {
           const limit = args.limit ?? 8
+
+          // Lazy auto-index: build the index on first use so the user/agent
+          // doesn't have to call codebase_index manually.
+          const last = await getMeta(projectDir, "lastIndexed")
+          if (!last) {
+            await log("no index yet — building lazily on first search")
+            await buildIndex(false)
+          }
+
           const hits = await search(projectDir, args.query, limit)
           if (hits.length === 0) {
-            const last = await getMeta(projectDir, "lastIndexed")
-            return last
-              ? "No matching code found."
-              : "No index found for this project yet. Run codebase_index first."
+            return "No matching code found."
           }
           return hits
             .map(
