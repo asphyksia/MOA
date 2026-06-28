@@ -167,6 +167,16 @@ async function main() {
   process.once("SIGINT", shutdown)
   process.once("SIGTERM", shutdown)
 
+  // Register the command menu so they appear in Telegram's "/" autocomplete.
+  await bot.api.setMyCommands([
+    { command: "chat", description: "Conversational mode (no shell)" },
+    { command: "dev", description: "Coding mode - edits + commands (admin only)" },
+    { command: "plan", description: "Read-only analysis mode" },
+    { command: "new", description: "Start a fresh session" },
+    { command: "status", description: "Show current mode and session" },
+    { command: "pair", description: "Pair with a one-time code" },
+  ])
+
   console.log("[moa-gateway] starting Telegram bot (long-polling)...")
   await bot.start({
     onStart: () => console.log("[moa-gateway] bot online. Default agent: " + cfg.defaultAgent),
