@@ -106,7 +106,7 @@ For availability independent of your PC, run opencore in a container. The image
 
 ```sh
 # from the repo root
-cp .env.docker.example .env     # set TELEGRAM_BOT_TOKEN, opencore_MODEL, provider key
+cp .env.docker.example .env     # set TELEGRAM_BOT_TOKEN, OPENCORE_MODEL, provider key
 docker compose up -d --build
 docker compose logs -f          # find the pairing code, then /pair in Telegram
 ```

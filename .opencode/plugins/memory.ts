@@ -35,7 +35,6 @@ const REFLECTION_MIN_TOKENS = 50 // Skip reflection if last message is tiny
 export const MemoryPlugin: Plugin = async ({ client }) => {
   let turnsSinceReflection = 0
   let lastReflectionHash = ""
-  let smallModel: { providerID: string; modelID: string } | null = null
   let alwaysVisibleCache: { facts: Fact[]; expiresAt: number } | null = null
   const tempSessionPrefix = "memory-temp-" // Prefix for our temp sessions
 
@@ -52,24 +51,6 @@ export const MemoryPlugin: Plugin = async ({ client }) => {
     return facts
   }
 
-  // Load small_model config once
-  async function getSmallModel(): Promise<{ providerID: string; modelID: string } | null> {
-    if (smallModel) return smallModel
-    try {
-      const cfg = await client.config.get()
-      if (cfg.data?.small_model) {
-        const [providerID, modelID] = cfg.data.small_model.split("/", 2)
-        if (providerID && modelID) {
-          smallModel = { providerID, modelID }
-          return smallModel
-        }
-      }
-    } catch {
-      /* fall through */
-    }
-    return null
-  }
-
   async function log(message: string, level: "info" | "warn" = "info") {
     try {
       await client.app.log({ body: { service: "opencore-memory", level, message } })
@@ -79,7 +60,8 @@ export const MemoryPlugin: Plugin = async ({ client }) => {
   }
 
   /**
-   * Execute an isolated LLM call using small_model in a temporary child session.
+   * Execute an isolated LLM call in a temporary child session, using the same
+   * model the user already has configured (no separate model required).
    * Returns the text response or null on error.
    */
   async function llmCall(parentSessionId: string, promptText: string): Promise<string | null> {
@@ -92,16 +74,12 @@ export const MemoryPlugin: Plugin = async ({ client }) => {
       if (!session.data?.id) return null
       tempSessionId = session.data.id
 
-      // Get small_model or fall back to default
-      const model = await getSmallModel()
-
-      // Make the LLM call
+      // Make the LLM call using the agent's own model (no model override).
       const result = await client.session.prompt({
         path: { id: tempSessionId },
         body: {
           agent: "dev",
           noReply: true, // Don't wait for streaming, just get the response
-          ...(model && { model }),
           tools: {}, // Disable all tools
           parts: [{ type: "text", text: promptText }],
         },

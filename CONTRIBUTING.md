@@ -125,7 +125,7 @@ The memory plugin now uses a **hybrid approach** combining patterns from leading
 
 3. **Conflict resolution (Pattern B, mem0-style):** Before storing any fact (manual or auto-extracted), the system searches for similar existing facts and decides via LLM: ADD | UPDATE <id> | DELETE <id> | SKIP. This prevents accumulation of redundant or contradictory memories.
 
-**Token efficiency:** Reflection uses only the last 6 messages (~500-800 tokens) with the small_model, and only happens every 5 turns. Conflict checks compare against the top 5 similar facts (~300-500 tokens), not the entire database.
+**Token efficiency:** Reflection uses only the last 6 messages (~500-800 tokens) and only happens every 5 turns. Conflict checks compare against the top 5 similar facts (~300-500 tokens), not the entire database. All LLM calls use the same model the user already has configured — no separate model required.
 
 **Cache:** Always-visible facts are cached for 5 minutes to avoid repeated DB queries on every turn.
 
