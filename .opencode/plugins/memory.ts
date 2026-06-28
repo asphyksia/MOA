@@ -36,6 +36,21 @@ export const MemoryPlugin: Plugin = async ({ client }) => {
   let turnsSinceReflection = 0
   let lastReflectionHash = ""
   let smallModel: { providerID: string; modelID: string } | null = null
+  let alwaysVisibleCache: { facts: Fact[]; expiresAt: number } | null = null
+  const tempSessionPrefix = "memory-temp-" // Prefix for our temp sessions
+
+  // Cache for always-visible facts (refreshed every 5 minutes)
+  const CACHE_TTL = 5 * 60 * 1000
+
+  async function getAlwaysVisibleFacts(): Promise<Fact[]> {
+    const now = Date.now()
+    if (alwaysVisibleCache && now < alwaysVisibleCache.expiresAt) {
+      return alwaysVisibleCache.facts
+    }
+    const facts = await topByImportance(5)
+    alwaysVisibleCache = { facts, expiresAt: now + CACHE_TTL }
+    return facts
+  }
 
   // Load small_model config once
   async function getSmallModel(): Promise<{ providerID: string; modelID: string } | null> {
@@ -70,9 +85,9 @@ export const MemoryPlugin: Plugin = async ({ client }) => {
   async function llmCall(parentSessionId: string, promptText: string): Promise<string | null> {
     let tempSessionId: string | null = null
     try {
-      // Create temporary child session
+      // Create temporary child session with recognizable prefix
       const session = await client.session.create({
-        body: { parentID: parentSessionId, title: "memory-temp" },
+        body: { parentID: parentSessionId, title: `${tempSessionPrefix}${Date.now()}` },
       })
       if (!session.data?.id) return null
       tempSessionId = session.data.id
@@ -340,10 +355,28 @@ If nothing is worth remembering, return: []`
       }
     },
 
-    // Inject the most important long-term facts into the compaction prompt so
-    // they survive context summarization.
+    // Inject the most important facts into every prompt (always-visible pattern A)
+    "experimental.chat.system.transform": async (input: any, output: any) => {
+      // Skip injection in our own temp sessions to avoid loops
+      const sessionId = input?.sessionID
+      if (sessionId && sessionId.startsWith(tempSessionPrefix)) return
+
+      const facts = await getAlwaysVisibleFacts()
+      if (facts.length === 0) return
+
+      const block =
+        "## Long-term memory (opencore)\n" +
+        "Key facts about the user/project that should inform your responses:\n" +
+        facts.map((f) => `- [${f.type}] ${f.text}`).join("\n")
+
+      if (Array.isArray(output?.system)) {
+        output.system.push(block)
+      }
+    },
+
+    // Also inject into the compaction prompt so they survive context summarization.
     "experimental.session.compacting": async (_input: any, output: any) => {
-      const facts = await topByImportance(5)
+      const facts = await getAlwaysVisibleFacts()
       if (facts.length === 0) return
       const block =
         "## Long-term memory (opencore)\n" +

@@ -115,15 +115,32 @@ opencore's memory and codebase plugins use SQLite via Bun's built-in `bun:sqlite
 - Schema migrations
 - Per-project vs global storage
 
+**Memory system V2 (automatic + conflict resolution):**
+
+The memory plugin now uses a **hybrid approach** combining patterns from leading AI agents:
+
+1. **Always-visible facts (Pattern A):** Top 5 facts by importance are injected into every prompt via `experimental.chat.system.transform`, ensuring the agent always has key context without requiring a search.
+
+2. **Auto-extraction on idle (Pattern C):** Every 5 turns, the agent reflects on the last 6 messages and extracts 0-5 durable facts using a small LLM call in an isolated child session. This happens automatically — you don't need to tell the agent to remember things.
+
+3. **Conflict resolution (Pattern B, mem0-style):** Before storing any fact (manual or auto-extracted), the system searches for similar existing facts and decides via LLM: ADD | UPDATE <id> | DELETE <id> | SKIP. This prevents accumulation of redundant or contradictory memories.
+
+**Token efficiency:** Reflection uses only the last 6 messages (~500-800 tokens) with the small_model, and only happens every 5 turns. Conflict checks compare against the top 5 similar facts (~300-500 tokens), not the entire database.
+
+**Cache:** Always-visible facts are cached for 5 minutes to avoid repeated DB queries on every turn.
+
 ### Event hooks
 
 Plugins can react to:
 - `message.updated` — new message from agent or user
-- `session.idle` — agent finished responding
+- `session.idle` — agent finished responding (used for memory auto-extraction)
 - `file.edited` — user edited a file
+- `experimental.chat.system.transform` — modify the system prompt (inject always-visible context)
 - `experimental.session.compacting` — context is being compressed (inject facts here)
 
 See `plugins/memory.ts` for a complete example.
+
+**Avoiding loops:** If your plugin makes LLM calls (e.g. via `client.session.prompt`), those calls trigger the same hooks. Use a recognizable session title prefix and skip your own sessions in hooks like `experimental.chat.system.transform`. See how `memory.ts` uses `tempSessionPrefix`.
 
 ### Tools with async logic
 
