@@ -55,26 +55,46 @@ Get-ChildItem $destPlugins -Recurse -Filter *.ts | ForEach-Object {
 #    absent, never overwrites your provider/model.
 Write-Host "Merging global opencode.json..."
 $globalCfgPath = Join-Path $dest "opencode.json"
-if (Test-Path $globalCfgPath) {
-  $cfg = Get-Content $globalCfgPath -Raw | ConvertFrom-Json
-} else {
-  $cfg = [PSCustomObject]@{ '$schema' = "https://opencode.ai/config.json" }
+
+# Recursively convert PSCustomObject (from ConvertFrom-Json) into ordered
+# hashtables, so we can mutate reliably on Windows PowerShell 5.1 (which lacks
+# ConvertFrom-Json -AsHashtable).
+function ConvertTo-HashtableDeep($obj) {
+  if ($null -eq $obj) { return $null }
+  if ($obj -is [System.Management.Automation.PSCustomObject]) {
+    $h = [ordered]@{}
+    foreach ($p in $obj.PSObject.Properties) {
+      $h[$p.Name] = ConvertTo-HashtableDeep $p.Value
+    }
+    return $h
+  }
+  if ($obj -is [System.Collections.IEnumerable] -and $obj -isnot [string]) {
+    return @($obj | ForEach-Object { ConvertTo-HashtableDeep $_ })
+  }
+  return $obj
 }
 
+if (Test-Path $globalCfgPath) {
+  $cfg = ConvertTo-HashtableDeep (Get-Content $globalCfgPath -Raw | ConvertFrom-Json)
+} else {
+  $cfg = [ordered]@{ '$schema' = "https://opencode.ai/config.json" }
+}
+if (-not $cfg) { $cfg = [ordered]@{} }
+
 # Ensure default_agent is set to dev unless the user already chose one.
-if (-not $cfg.PSObject.Properties.Name.Contains("default_agent")) {
-  $cfg | Add-Member -NotePropertyName "default_agent" -NotePropertyValue "dev" -Force
+if (-not $cfg.Contains("default_agent")) {
+  $cfg["default_agent"] = "dev"
 }
 
 # Ensure hardened permissions exist (don't clobber if user already customized).
-if (-not $cfg.PSObject.Properties.Name.Contains("permission")) {
-  $perm = [PSCustomObject]@{
+if (-not $cfg.Contains("permission")) {
+  $cfg["permission"] = [ordered]@{
     edit = "ask"
-    bash = [PSCustomObject]@{
-      "*"         = "ask"
-      "rm -rf *"  = "deny"
-      "rm -rf /"  = "deny"
-      "sudo *"    = "deny"
+    bash = [ordered]@{
+      "*"           = "ask"
+      "rm -rf *"    = "deny"
+      "rm -rf /"    = "deny"
+      "sudo *"      = "deny"
       "git status*" = "allow"
       "git diff*"   = "allow"
       "git log*"    = "allow"
@@ -82,8 +102,13 @@ if (-not $cfg.PSObject.Properties.Name.Contains("permission")) {
       "cat *"       = "allow"
     }
   }
-  $cfg | Add-Member -NotePropertyName "permission" -NotePropertyValue $perm -Force
 }
+
+# Disable the built-in `build` agent — `dev` is its MOA-tuned replacement.
+# Preserve any other agent overrides the user may have.
+if (-not $cfg.Contains("agent")) { $cfg["agent"] = [ordered]@{} }
+if (-not $cfg["agent"].Contains("build")) { $cfg["agent"]["build"] = [ordered]@{} }
+$cfg["agent"]["build"]["disable"] = $true
 
 $cfg | ConvertTo-Json -Depth 20 | Set-Content $globalCfgPath -Encoding utf8
 Write-Host "  wrote $globalCfgPath"

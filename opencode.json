@@ -19,5 +19,10 @@
       "cat *": "allow"
     }
   },
-  "plugin": []
+  "plugin": [],
+  "agent": {
+    "build": {
+      "disable": true
+    }
+  }
 }
