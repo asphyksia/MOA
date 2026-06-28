@@ -1,0 +1,37 @@
+# MOA Gateway - 24/7 deployment on a server/VPS.
+#
+# Usage:
+#   1. Create a .env file next to this compose file with your secrets:
+#        TELEGRAM_BOT_TOKEN=...        # from @BotFather
+#        MOA_MODEL=anthropic/claude-...   # provider/model id
+#        ANTHROPIC_API_KEY=...         # whatever provider key your model needs
+#   2. docker compose up -d
+#   3. docker compose logs -f         # find the pairing code, /pair in Telegram
+#
+# The gateway reaches Telegram via outbound polling, so no inbound ports are
+# published. The opencode server stays internal to the container.
+
+services:
+  moa-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: moa-gateway:latest
+    container_name: moa-gateway
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Default agent for remote use. 'chat' = no shell (safe default).
+      # Set to 'dev' only if you accept remote code execution in the container.
+      MOA_GATEWAY_DEFAULT_AGENT: ${MOA_GATEWAY_DEFAULT_AGENT:-chat}
+      MOA_GATEWAY_WORKDIR: /work
+    volumes:
+      # Persist MOA state (long-term memory, gateway allowlist/pairing).
+      - moa-state:/home/moa/.moa
+      # Optional: mount a project for the agent to work on.
+      # - ./my-project:/work
+    # No ports exposed: Telegram is reached via outbound long-polling.
+
+volumes:
+  moa-state:

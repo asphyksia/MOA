@@ -99,9 +99,29 @@ powershell -ExecutionPolicy Bypass -File scripts\daemon.ps1 uninstall # remove f
   availability independent of your machine, deploy on a server (planned Docker
   setup).
 
+## Docker (24/7 on a server/VPS)
+
+For availability independent of your PC, run MOA in a container. The image
+(repo root `Dockerfile`) bundles opencode + MOA's config + this gateway.
+
+```sh
+# from the repo root
+cp .env.docker.example .env     # set TELEGRAM_BOT_TOKEN, MOA_MODEL, provider key
+docker compose up -d --build
+docker compose logs -f          # find the pairing code, then /pair in Telegram
+```
+
+- `restart: unless-stopped` keeps it alive across crashes/reboots.
+- State (long-term memory, pairing) persists in the `moa-state` volume.
+- No inbound ports are published - Telegram is reached via outbound polling.
+- Default agent is `chat` (no shell). Set `MOA_GATEWAY_DEFAULT_AGENT=dev` only
+  if you accept remote code execution inside the container.
+- To let the agent work on a project, mount it at `/work` (see the commented
+  volume in `docker-compose.yml`).
+
 ## Status
 
 Phases 1-3 complete and verified. The local daemon (Windows Startup + supervisor)
 was tested end-to-end: install / start / status / logs / crash auto-restart /
-stop / uninstall, all without admin rights. Next: Dockerfile + compose for
-server/VPS 24/7 deployment.
+stop / uninstall, all without admin rights. Docker setup (Dockerfile + compose)
+for server/VPS 24/7 deployment: compose validated; build/run on the target host.

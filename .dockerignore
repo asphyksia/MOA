@@ -1,0 +1,28 @@
+# Build context excludes - keep the image lean and secrets out.
+**/node_modules
+**/dist
+.git
+.gitignore
+*.log
+
+# Secrets and local state never go into the image
+**/.env
+**/.env.*
+!**/.env.example
+.moa/
+
+# Docs / non-runtime
+*.md
+!gateway/README.md
+arquitectura-agente.md
+PROGRESS.md
+
+# Local installers (not used in container)
+scripts/
+gateway/scripts/
+
+# Editor/OS noise
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

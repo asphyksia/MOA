@@ -69,8 +69,15 @@ GitHub: https://github.com/asphyksia/MOA
   the gateway on crash (backoff, max 10/min). Commands: install/start/status/
   logs/stop/uninstall. Logs to ~/.moa/gateway/daemon.log. Runs the compiled
   dist/ build. VERIFIED end-to-end including crash auto-restart. Runs only while
-  logged in + PC on; for 24/7 independent of the machine, use the planned Docker
-  setup (deploy where opencode lives: local PC = daemon, VPS = Docker).
+  logged in + PC on; for 24/7 independent of the machine, use the Docker setup
+  below (deploy where opencode lives: local PC = daemon, VPS = Docker).
+- **Gateway Docker (server/VPS)** — `Dockerfile` + `docker-compose.yml` +
+  `.dockerignore` + `.env.docker.example` + `gateway/docker/opencode.global.json`.
+  Bun+Node base, installs opencode globally, builds the gateway, copies MOA
+  config (agents/plugins/skills) into ~/.config/opencode, secrets via env at
+  runtime. `restart: unless-stopped`, persistent `moa-state` volume, NO published
+  ports (Telegram via outbound polling). compose config validated; image build
+  not run here (no Docker daemon on this machine) - build/run on the target VPS.
 
 ## Runtime facts
 
@@ -96,9 +103,6 @@ GitHub: https://github.com/asphyksia/MOA
 
 ## Next candidates (not started)
 
-- Gateway server deployment: Dockerfile + docker-compose (opencode + MOA +
-  gateway, restart policy) for 24/7 on a VPS - the production path. MOA installs
-  where opencode lives: local PC -> Startup daemon (done); VPS -> Docker (next).
 - Real-use testing of chat/dev (tone, memory recall, RAG).
 - Possible: more MCP servers, agentskills.io skills, embeddings (semantic
   search), image/voice tools.
