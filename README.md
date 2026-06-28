@@ -27,6 +27,13 @@ What's wired up and tested:
   - facts from the old V1 JSONL store are migrated automatically on first run
 - **Token budget** plugin: daily usage tracking + warn threshold, state at
   `~/.moa/budget/<date>.json`
+- **Codebase RAG** plugin:
+  - per-project SQLite + FTS5 index of the project's files at
+    `~/.moa/codebase/<project-hash>.db`
+  - tools `codebase_index` (build/rebuild, respects .gitignore) and
+    `codebase_search` (keyword/BM25 search returning file path + line range)
+  - incremental re-index on `file.edited`
+  - keyword search, no embeddings (known limit: no synonym/semantic match)
 - Hardened permissions: `rm -rf`, `sudo` hard-denied; most bash gated by `ask`.
 
 ## Layout
@@ -40,8 +47,11 @@ What's wired up and tested:
 │   │   └── chat.md          # CHAT soul (conversational)
 │   ├── plugins/
 │   │   ├── memory.ts        # two-level memory + tools + compaction hook
+│   │   ├── codebase.ts      # codebase RAG: index + search tools
 │   │   ├── lib/
-│   │   │   └── memory-store.ts  # SQLite + FTS5 storage layer
+│   │   │   ├── memory-store.ts   # SQLite + FTS5 storage layer (memory)
+│   │   │   ├── codebase-store.ts # SQLite + FTS5 storage layer (per-project code)
+│   │   │   └── indexer.ts        # file discovery + line-range chunking
 │   │   └── budget.ts        # token budget tracking
 │   └── package.json         # plugin dependency (@opencode-ai/plugin)
 ├── package.json             # depends on opencode-ai
@@ -91,6 +101,13 @@ The agent can call these during a session:
 - `memory_remember { text, type, importance? }` — store a durable fact
   (types: identity | preference | goal | project | decision | note)
 - `memory_search { query, limit? }` — retrieve relevant stored facts
+
+## Codebase tools
+
+- `codebase_index { rebuild? }` — build/rebuild the project's full-text index
+  (respects .gitignore). Run once per project or after large changes.
+- `codebase_search { query, limit? }` — keyword/BM25 search over indexed code,
+  returns matching chunks with file path and line range.
 
 ## Notes & roadmap
 
