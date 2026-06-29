@@ -8,10 +8,11 @@ Built on [opencode](https://opencode.ai) as a dependency (not a fork), opencore 
 
 ## What is opencore?
 
-Opencore gives you two agents in one:
+opencore gives you three agents in one:
 
-- **`dev` mode** — Professional coding assistant with broad permissions for actual development work
+- **`dev` mode** — Professional coding assistant with broad permissions for development work
 - **`chat` mode** — Conversational helper, read-only by default, safe for exploration and questions
+- **`plan` mode** — Read-only technical strategist for analysis, planning, and code review
 
 Switch between them anytime with `Tab`.
 
@@ -43,6 +44,7 @@ Switch between them anytime with `Tab`.
 - **Token budget tracking** — know your daily usage
 - **MCP integration** — `context7` for up-to-date library docs, `gh_grep` for real-world code examples
 - **Agent Skills** — reusable instruction templates (like `git-release` for generating changelogs)
+- **Skill telemetry** — track which skills are used, when, and how often (`skill_stats`)
 
 ### 🔒 Safe by Default
 - Hardened permissions: `rm -rf` and `sudo` blocked
@@ -73,6 +75,10 @@ powershell -ExecutionPolicy Bypass -File scripts\install.ps1
 # macOS / Linux
 ./scripts/install.sh
 ```
+
+Opt-in flags:
+- `-DisableBuild` / `--disable-build` — hide opencode's built-in `build` agent (opencore's `dev` replaces it)
+- `-DisablePlan` / `--disable-plan` — hide opencode's built-in `plan` agent (opencore's `plan.md` replaces it with consistent voice and plugin awareness)
 
 Non-intrusive: only adds missing settings, never overwrites your provider/model config. Re-run after any change to sync.
 
@@ -112,6 +118,7 @@ Optional: set your preferred model via env (see `.env.example`).
 
 **Skills** (loaded on demand, no context cost until used)
 - `git-release` — draft release notes, propose a semver bump, produce a release command
+- `skill_stats { skill?, unused_days? }` — see usage telemetry: which skills are used and when
 
 Add more MCP servers under `mcp` in `opencode.json`. Add more skills by creating `.opencode/skills/<name>/SKILL.md`.
 
@@ -142,12 +149,14 @@ Inspect daily memory with `cat ~/.opencore/memory/exports/2026-06-29.md`, or sea
 ```
 .opencode/
 ├── agents/
-│   ├── dev.md              # dev soul (professional coding)
-│   └── chat.md             # chat soul (conversational, read-only)
+│   ├── dev.md              # dev soul (senior coding engineer)
+│   ├── chat.md             # chat soul (direct conversational partner)
+│   └── plan.md             # plan soul (technical strategist)
 ├── plugins/
 │   ├── memory.ts           # two-level memory + auto-extract + conflict resolution
 │   ├── codebase.ts         # per-project codebase RAG
 │   ├── session-search.ts   # cross-session conversation recall
+│   ├── skill-telemetry.ts  # skill usage tracking and stats
 │   ├── budget.ts           # daily token usage tracking
 │   └── lib/                # SQLite + FTS5 storage layer (per plugin)
 └── skills/
