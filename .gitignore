@@ -10,6 +10,7 @@ node_modules/
 
 # internal dev notes (not for public repo)
 PROGRESS.md
+HERMES_ANALYSIS.md
 
 # env
 .env
