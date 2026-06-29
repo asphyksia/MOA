@@ -30,6 +30,7 @@ export type Fact = {
   text: string
   type: string
   importance: number
+  access_count?: number
   createdAt: string
   source?: string
 }
@@ -70,10 +71,14 @@ async function openDb(): Promise<DB> {
       text       TEXT NOT NULL,
       type       TEXT NOT NULL,
       importance REAL NOT NULL DEFAULT 0.5,
+      access_count INTEGER NOT NULL DEFAULT 0,
       createdAt  TEXT NOT NULL,
       source     TEXT
     )
   `)
+
+  // Migration: add access_count column if it doesn't exist (pre-consolidation DBs).
+  try { db.run("ALTER TABLE facts ADD COLUMN access_count INTEGER NOT NULL DEFAULT 0") } catch { /* already exists */ }
 
   db.run(`
     CREATE VIRTUAL TABLE IF NOT EXISTS facts_fts
@@ -299,11 +304,16 @@ function resolveFacts(d: DB, ids: string[]): Fact[] {
   if (ids.length === 0) return []
   const out: Fact[] = []
   const stmt = d.prepare(
-    "SELECT id, text, type, importance, createdAt, source FROM facts WHERE id = ?",
+    "SELECT id, text, type, importance, access_count, createdAt, source FROM facts WHERE id = ?",
   )
+  const bump = d.prepare("UPDATE facts SET access_count = access_count + 1 WHERE id = ?")
   for (const id of ids) {
     const row = stmt.get(id) as Fact | undefined
-    if (row) out.push(row)
+    if (row) {
+      out.push(row)
+      // Background bump: increment retrieval counter for consolidation scoring
+      try { bump.run(id) } catch { /* best-effort */ }
+    }
   }
   return out
 }
@@ -437,4 +447,120 @@ export async function exportedDays(): Promise<string[]> {
   } catch {
     return []
   }
+}
+
+// ─── Consolidation (OpenClaw-inspired dreaming) ──────────────────────
+
+const CONSOLIDATE_TOP_N = 8       // Facts promoted to always-visible
+const CONSOLIDATE_MIN_AGE_DAYS = 1 // Facts younger than this are not pruned
+const CONSOLIDATE_MEMORY_MD = _join(dir, "MEMORY.md")
+
+/**
+ * Compute a consolidation score for a fact: importance (0..1) × recency
+ * decay (0..1) × log-boosted access count.
+ */
+function consolidationScore(fact: Fact, now: number): number {
+  const imp = fact.importance
+  // Access count: log-scaled so a fact seen 100 times isn't 100x the weight of one seen once.
+  const acc = Math.log2((fact.access_count || 0) + 1) + 1 // range ~1..8
+  // Recency: days since created, decay over 90 days.
+  const ageDays = (now - new Date(fact.createdAt).getTime()) / 86_400_000
+  const recency = Math.max(0, 1 - ageDays / 90) // 1.0 today, ~0.5 at 45d, 0 at 90d
+  return imp * acc * recency
+}
+
+export type ConsolidationResult = {
+  promoted: number     // Facts that made it to MEMORY.md
+  total: number         // Total facts scored
+  topScore?: number
+  lowScore?: number
+}
+
+/**
+ * Consolidate facts: score all, promote top N high-signal facts to
+ * MEMORY.md (human-readable long-term summary) and return the same set
+ * for always-visible injection. Does NOT delete facts — it only decides
+ * which ones deserve the spotlight.
+ *
+ * MEMORY.md is written to ~/.opencore/memory/MEMORY.md. The DB remains
+ * the source of truth with all facts intact.
+ */
+export async function consolidateMemory(): Promise<ConsolidationResult> {
+  const d = await db()
+  const now = Date.now()
+
+  const all = d
+    .query(
+      "SELECT id, text, type, importance, access_count, createdAt " +
+        "FROM facts ORDER BY createdAt DESC",
+    )
+    .all() as Fact[]
+  if (all.length === 0) return { promoted: 0, total: 0 }
+
+  // Score and sort
+  const scored = all.map((f) => ({ fact: f, score: consolidationScore(f, now) }))
+  scored.sort((a, b) => b.score - a.score)
+
+  const top = scored.slice(0, CONSOLIDATE_TOP_N)
+
+  // Write MEMORY.md
+  const today = new Date().toISOString().slice(0, 10)
+  const lines: string[] = []
+  lines.push(`# Long-term Memory`)
+  lines.push("")
+  lines.push(`_Consolidated ${today} — ${top.length} of ${all.length} facts promoted._`)
+  lines.push("")
+  lines.push("These are the highest-signal durable facts. The full dataset is in `memory.db`.")
+  lines.push("")
+
+  const byType = new Map<string, Fact[]>()
+  for (const { fact } of top) {
+    if (!byType.has(fact.type)) byType.set(fact.type, [])
+    byType.get(fact.type)!.push(fact)
+  }
+  for (const [type, facts] of byType) {
+    const cap = type.charAt(0).toUpperCase() + type.slice(1) + "s"
+    lines.push(`## ${cap}`)
+    lines.push("")
+    for (const f of facts) {
+      const accStr = f.access_count ? ` (retrieved ${f.access_count}x)` : ""
+      lines.push(`- ${f.text}${accStr}`)
+    }
+    lines.push("")
+  }
+
+  _writeFileSync(CONSOLIDATE_MEMORY_MD, lines.join("\n"), "utf8")
+
+  return {
+    promoted: top.length,
+    total: all.length,
+    topScore: Math.round(scored[0]?.score * 100) / 100,
+    lowScore: Math.round(scored[scored.length - 1]?.score * 100) / 100,
+  }
+}
+
+/**
+ * Return the top N facts by consolidation score (convenience accessor
+ * for the always-visible injection path).
+ */
+export async function topConsolidated(limit = 8): Promise<Fact[]> {
+  const d = await db()
+  const now = Date.now()
+  const all = d
+    .query(
+      "SELECT id, text, type, importance, access_count, createdAt " +
+        "FROM facts ORDER BY createdAt DESC",
+    )
+    .all() as Fact[]
+  const scored = all
+    .map((f) => ({ fact: f, score: consolidationScore(f, now) }))
+    .sort((a, b) => b.score - a.score)
+  return scored.slice(0, limit).map((s) => s.fact)
+}
+
+/** Count of facts stored (for triggering consolidate suggestion). */
+export async function countFacts(): Promise<number> {
+  const d = await db()
+  const row = d.query("SELECT COUNT(*) AS n FROM facts").get() as { n: number }
+  return row?.n ?? 0
 }

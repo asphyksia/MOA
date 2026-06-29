@@ -8,6 +8,9 @@ import {
   deleteFact,
   exportAllDays,
   exportedDays,
+  consolidateMemory,
+  topConsolidated,
+  countFacts,
   type Fact,
 } from "./lib/memory-store"
 
@@ -48,7 +51,7 @@ export const MemoryPlugin: Plugin = async ({ client }) => {
     if (alwaysVisibleCache && now < alwaysVisibleCache.expiresAt) {
       return alwaysVisibleCache.facts
     }
-    const facts = await topByImportance(5)
+    const facts = await topConsolidated(5)
     alwaysVisibleCache = { facts, expiresAt: now + CACHE_TTL }
     return facts
   }
@@ -358,6 +361,25 @@ If nothing is worth remembering, return: []`
           const days = await exportedDays()
           if (days.length === 0) return "No day exports yet. They are created automatically as facts are added."
           return `Exported days: ${days.join(", ")}\nPath: ~/.opencore/memory/exports/`
+        },
+      }),
+
+      memory_consolidate: tool({
+        description:
+          "Consolidate memory: score all facts by importance x recency x retrieval frequency, " +
+          "promote top facts to MEMORY.md, and regenerate the always-visible block. " +
+          "Use after accumulating many facts, or when always-visible feels stale.",
+        args: {},
+        async execute(_args) {
+          const result = await consolidateMemory()
+          // Bust the always-visible cache so next turn picks up the new top facts
+          alwaysVisibleCache = null
+          if (result.total === 0) return "No facts to consolidate."
+          return [
+            `Consolidated ${result.promoted} of ${result.total} facts into MEMORY.md.`,
+            `Score range: ${result.lowScore} .. ${result.topScore}.`,
+            `Always-visible will update on next turn.`,
+          ].join("\n")
         },
       }),
     },
