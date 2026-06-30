@@ -75,6 +75,25 @@ Telegram  <--outbound polling-->  gateway (this)  <--HTTP 127.0.0.1-->  opencode
 
 State (pairing/allowlist) persists to `~/.opencore/gateway/allowlist.json`.
 
+## Reset pairing
+
+If you need to pair again (lost access, want to change admin, etc.):
+
+```powershell
+cd gateway
+
+# Stop the gateway first (if running as daemon)
+powershell -ExecutionPolicy Bypass -File scripts\daemon.ps1 stop
+
+# Reset pairing (clears all admins/members, generates new code)
+npm run reset-pairing
+
+# Restart
+powershell -ExecutionPolicy Bypass -File scripts\daemon.ps1 start
+```
+
+Or if running manually (`npm run dev`), just stop it (Ctrl+C), run `npm run reset-pairing`, then `npm run dev` again. The new code prints to console — send `/pair <code>` in Telegram to become admin.
+
 ## Daemon (run at logon, auto-restart)
 
 Once you've confirmed manual mode works, run it as a background daemon. On

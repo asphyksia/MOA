@@ -106,4 +106,13 @@ export class Allowlist {
   list(): { admins: number[]; members: number[] } {
     return { admins: [...this.data.admins], members: [...this.data.members] }
   }
+
+  /** Reset pairing: clear all admins/members and generate a fresh pairing code. */
+  resetPairing(): string {
+    this.data.admins = []
+    this.data.members = []
+    this.data.pairingCode = randomBytes(4).toString("hex")
+    save(this.data)
+    return this.data.pairingCode
+  }
 }

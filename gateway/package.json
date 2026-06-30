@@ -10,7 +10,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "dev": "tsx src/index.ts"
+    "dev": "tsx src/index.ts",
+    "reset-pairing": "tsx scripts/reset-pairing.ts"
   },
   "dependencies": {
     "@opencode-ai/sdk": "1.17.11",
