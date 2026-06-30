@@ -109,11 +109,13 @@ export class OpencodeService {
    * Send a prompt to a session with a chosen agent, return the assistant's
    * text reply.
    */
-  async prompt(sessionId: string, agent: AgentName, text: string): Promise<string> {
+  async prompt(sessionId: string, agent: AgentName, text: string, model?: string): Promise<string> {
     if (!this.client) throw new Error("service not started")
+    const body: any = { agent, parts: [{ type: "text", text }] }
+    if (model) body.model = model
     const res = await this.client.session.prompt({
       path: { id: sessionId },
-      body: { agent, parts: [{ type: "text", text }] },
+      body,
     })
     const data = (res as any).data ?? res
     const parts = data?.parts ?? []

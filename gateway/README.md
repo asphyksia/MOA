@@ -59,8 +59,9 @@ Telegram  <--outbound polling-->  gateway (this)  <--HTTP 127.0.0.1-->  opencode
 | `/chat` | Switch this chat to conversational mode (no shell) |
 | `/dev` | Switch to coding mode (edits + commands) — **admin only** |
 | `/plan` | Switch to read-only analysis mode |
+| `/models` | Pick a model for this chat (shows inline keyboard) |
 | `/new` | Start a fresh session |
-| `/status` | Show current mode + session state |
+| `/status` | Show current mode + model + session state |
 | any text | Sent to opencore as a prompt in the current mode |
 
 ## Config (.env)
@@ -72,6 +73,8 @@ Telegram  <--outbound polling-->  gateway (this)  <--HTTP 127.0.0.1-->  opencode
 | `opencore_GATEWAY_DEFAULT_AGENT` | `chat` | `chat` \| `dev` \| `plan` |
 | `opencore_GATEWAY_WORKDIR` | cwd | directory the agent operates in |
 | `opencore_OPENCODE_BIN` | auto | explicit path to opencode if needed |
+| `OPENCORE_MODELS` | (built-in list) | comma-separated `id:label` pairs for `/models` |
+| `OPENCORE_DEFAULT_MODEL` | (opencode's model) | default model for new chats |
 
 State (pairing/allowlist) persists to `~/.opencore/gateway/allowlist.json`.
 

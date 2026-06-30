@@ -1,4 +1,4 @@
-import { Bot } from "grammy"
+import { Bot, InlineKeyboard } from "grammy"
 import { loadConfig, type AgentName } from "./config.js"
 import { Allowlist } from "./allowlist.js"
 import { OpencodeService } from "./opencode-service.js"
@@ -25,14 +25,14 @@ async function main() {
   await oc.start()
   console.log(`[opencore-gateway] opencode server healthy on 127.0.0.1:${cfg.port}`)
 
-  // Per-chat state: session id + current agent.
-  const chats = new Map<number, { sessionId: string; agent: AgentName }>()
+  // Per-chat state: session id + current agent + current model.
+  const chats = new Map<number, { sessionId: string; agent: AgentName; model?: string }>()
 
-  async function ensureChat(chatId: number): Promise<{ sessionId: string; agent: AgentName }> {
+  async function ensureChat(chatId: number): Promise<{ sessionId: string; agent: AgentName; model?: string }> {
     let st = chats.get(chatId)
     if (!st) {
       const sessionId = await oc.createSession(`telegram:${chatId}`)
-      st = { sessionId, agent: cfg.defaultAgent }
+      st = { sessionId, agent: cfg.defaultAgent, model: cfg.defaultModel }
       chats.set(chatId, st)
     }
     return st
@@ -119,13 +119,54 @@ async function main() {
   bot.command("dev", (ctx) => switchAgent(ctx, "dev"))
   bot.command("plan", (ctx) => switchAgent(ctx, "plan"))
 
+  // /models - show model picker
+  bot.command("models", async (ctx) => {
+    const chatId = ctx.chat?.id
+    if (chatId == null) return
+    const st = chats.get(chatId)
+    const currentModel = st?.model || cfg.defaultModel || "(default)"
+
+    const keyboard = new InlineKeyboard()
+    for (const m of cfg.availableModels) {
+      const prefix = m.id === st?.model ? "✓ " : ""
+      keyboard.text(prefix + m.label, `model:${m.id}`).row()
+    }
+
+    await ctx.reply(
+      `Current model: ${currentModel}\n\nSelect a model:`,
+      { reply_markup: keyboard }
+    )
+  })
+
+  // Callback handler for model selection
+  bot.on("callback_query:data", async (ctx) => {
+    const data = ctx.callbackQuery.data
+    if (!data.startsWith("model:")) return
+
+    const modelId = data.slice(6)
+    const chatId = ctx.chat?.id
+    if (chatId == null) return
+
+    const st = await ensureChat(chatId)
+    st.model = modelId
+    chats.set(chatId, st)
+
+    const model = cfg.availableModels.find((m) => m.id === modelId)
+    await ctx.answerCallbackQuery({ text: `Switched to ${model?.label || modelId}` })
+    await ctx.editMessageText(`Model changed to: ${model?.label || modelId}`)
+  })
+
   // /new - fresh session
   bot.command("new", async (ctx) => {
     const chatId = ctx.chat?.id
     if (chatId == null) return
     const sessionId = await oc.createSession(`telegram:${chatId}`)
     const prev = chats.get(chatId)
-    chats.set(chatId, { sessionId, agent: prev?.agent ?? cfg.defaultAgent })
+    chats.set(chatId, { 
+      sessionId, 
+      agent: prev?.agent ?? cfg.defaultAgent,
+      model: prev?.model ?? cfg.defaultModel
+    })
     await ctx.reply("Started a new session.")
   })
 
@@ -134,7 +175,12 @@ async function main() {
     const chatId = ctx.chat?.id
     if (chatId == null) return
     const st = chats.get(chatId)
-    await ctx.reply(`mode: ${st?.agent ?? cfg.defaultAgent}\nsession: ${st ? "active" : "none yet"}`)
+    const model = st?.model || cfg.defaultModel || "(default)"
+    await ctx.reply(
+      `mode: ${st?.agent ?? cfg.defaultAgent}\n` +
+      `model: ${model}\n` +
+      `session: ${st ? "active" : "none yet"}`
+    )
   })
 
   // Plain text -> prompt the agent
@@ -145,7 +191,7 @@ async function main() {
     const st = await ensureChat(chatId)
     await ctx.replyWithChatAction("typing")
     try {
-      const reply = await oc.prompt(st.sessionId, st.agent, text)
+      const reply = await oc.prompt(st.sessionId, st.agent, text, st.model)
       // Telegram hard limit is 4096 chars per message.
       await ctx.reply(reply.slice(0, 4000))
     } catch (err: any) {
@@ -172,6 +218,7 @@ async function main() {
     { command: "chat", description: "Conversational mode (no shell)" },
     { command: "dev", description: "Coding mode - edits + commands (admin only)" },
     { command: "plan", description: "Read-only analysis mode" },
+    { command: "models", description: "Switch model" },
     { command: "new", description: "Start a fresh session" },
     { command: "status", description: "Show current mode and session" },
     { command: "pair", description: "Pair with a one-time code" },
