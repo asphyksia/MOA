@@ -16,8 +16,9 @@ import { readFileSync, existsSync } from "node:fs"
 let _stateDir: string | null = null
 export function getStateDir(): string {
   if (_stateDir) return _stateDir
-  _stateDir = process.env.OPENCORE_STATE_DIR
-    ? join(process.env.OPENCORE_STATE_DIR, "gateway")
+  const root = envValue("OPENCORE_STATE_DIR")
+  _stateDir = root
+    ? join(root, "gateway")
     : join(homedir(), ".opencore", "gateway")
   return _stateDir
 }
@@ -57,6 +58,21 @@ function parseAgent(v: string | undefined): AgentName {
   return "chat"
 }
 
+function envValue(name: string, legacyName?: string): string | undefined {
+  const value = process.env[name]?.trim()
+  if (value) return value
+  if (!legacyName) return undefined
+  const legacy = process.env[legacyName]?.trim()
+  return legacy || undefined
+}
+
+function envNumber(name: string, fallback: number, legacyName?: string): number {
+  const raw = envValue(name, legacyName)
+  if (!raw) return fallback
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
 export function loadConfig(): GatewayConfig {
   loadDotEnv()
   // Resolve stateDir after .env is loaded so OPENCORE_STATE_DIR in .env works.
@@ -92,11 +108,11 @@ export function loadConfig(): GatewayConfig {
 
   return {
     telegramToken,
-    port: Number(process.env.opencore_GATEWAY_PORT ?? 4099),
-    defaultAgent: parseAgent(process.env.opencore_GATEWAY_DEFAULT_AGENT),
-    workdir: process.env.opencore_GATEWAY_WORKDIR?.trim() || process.cwd(),
-    opencodeBin: process.env.opencore_OPENCODE_BIN?.trim() || undefined,
+    port: envNumber("OPENCORE_GATEWAY_PORT", 4099, "opencore_GATEWAY_PORT"),
+    defaultAgent: parseAgent(envValue("OPENCORE_GATEWAY_DEFAULT_AGENT", "opencore_GATEWAY_DEFAULT_AGENT")),
+    workdir: envValue("OPENCORE_GATEWAY_WORKDIR", "opencore_GATEWAY_WORKDIR") || process.cwd(),
+    opencodeBin: envValue("OPENCORE_OPENCODE_BIN", "opencore_OPENCODE_BIN"),
     availableModels,
-    defaultModel: process.env.OPENCORE_DEFAULT_MODEL?.trim(),
+    defaultModel: envValue("OPENCORE_DEFAULT_MODEL"),
   }
 }

@@ -106,7 +106,7 @@ if (Test-Path $srcSkills) {
 Write-Host "Ensuring plugin dependency..."
 $destPkg = Join-Path $dest "package.json"
 if (-not (Test-Path $destPkg)) {
-  '{ "dependencies": { "@opencode-ai/plugin": "^1.17.11" } }' | Set-Content $destPkg -Encoding utf8
+  '{ "dependencies": { "@opencode-ai/plugin": "1.17.11" } }' | Set-Content $destPkg -Encoding utf8
   Write-Host "  + created package.json"
 }
 if (-not (Test-Path (Join-Path $dest "node_modules\@opencode-ai\plugin"))) {

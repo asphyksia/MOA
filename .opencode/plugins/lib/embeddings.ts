@@ -7,10 +7,10 @@
  *
  * Config is read from (in order of precedence):
  *   1. Environment variables (good for CLI / shell launches):
- *        opencore_EMBED_BASE_URL  e.g. http://127.0.0.1:8181/v1
- *        opencore_EMBED_MODEL     e.g. harrier
- *        opencore_EMBED_API_KEY   optional (cloud)
- *        opencore_EMBED_QUERY_INSTRUCT  optional query instruction override
+ *        OPENCORE_EMBED_BASE_URL  e.g. http://127.0.0.1:8181/v1
+ *        OPENCORE_EMBED_MODEL     e.g. harrier
+ *        OPENCORE_EMBED_API_KEY   optional (cloud)
+ *        OPENCORE_EMBED_QUERY_INSTRUCT  optional query instruction override
  *   2. A config file at ~/.opencore/embeddings.json (good for the desktop app and
  *      the daemon, which don't inherit your shell env):
  *        { "baseUrl": "...", "model": "...", "apiKey": "...", "queryInstruct": "..." }
@@ -37,6 +37,14 @@ interface EmbedConfig {
 const DEFAULT_QUERY_INSTRUCT =
   "Instruct: Given a search query, retrieve relevant text that answers it\nQuery: "
 
+function envValue(name: string, legacyName?: string): string | undefined {
+  const value = process.env[name]?.trim()
+  if (value) return value
+  if (!legacyName) return undefined
+  const legacy = process.env[legacyName]?.trim()
+  return legacy || undefined
+}
+
 function loadConfig(): EmbedConfig {
   // File config (so the desktop app / daemon work without shell env).
   let file: Partial<EmbedConfig> = {}
@@ -46,12 +54,14 @@ function loadConfig(): EmbedConfig {
   } catch {
     /* ignore malformed file */
   }
-  const env = process.env
   return {
-    baseUrl: (env.opencore_EMBED_BASE_URL || file.baseUrl || "").replace(/\/+$/, ""),
-    model: env.opencore_EMBED_MODEL || file.model || "harrier",
-    apiKey: env.opencore_EMBED_API_KEY || file.apiKey || "",
-    queryInstruct: env.opencore_EMBED_QUERY_INSTRUCT || file.queryInstruct || DEFAULT_QUERY_INSTRUCT,
+    baseUrl: (envValue("OPENCORE_EMBED_BASE_URL", "opencore_EMBED_BASE_URL") || file.baseUrl || "").replace(/\/+$/, ""),
+    model: envValue("OPENCORE_EMBED_MODEL", "opencore_EMBED_MODEL") || file.model || "harrier",
+    apiKey: envValue("OPENCORE_EMBED_API_KEY", "opencore_EMBED_API_KEY") || file.apiKey || "",
+    queryInstruct:
+      envValue("OPENCORE_EMBED_QUERY_INSTRUCT", "opencore_EMBED_QUERY_INSTRUCT") ||
+      file.queryInstruct ||
+      DEFAULT_QUERY_INSTRUCT,
   }
 }
 

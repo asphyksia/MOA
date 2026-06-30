@@ -25,12 +25,13 @@ services:
     environment:
       # Default agent for remote use. 'chat' = no shell (safe default).
       # Set to 'dev' only if you accept remote code execution in the container.
-      opencore_GATEWAY_DEFAULT_AGENT: ${opencore_GATEWAY_DEFAULT_AGENT:-chat}
-      opencore_GATEWAY_WORKDIR: /work
+      OPENCORE_GATEWAY_DEFAULT_AGENT: ${OPENCORE_GATEWAY_DEFAULT_AGENT:-chat}
+      OPENCORE_GATEWAY_WORKDIR: /work
+      OPENCORE_STATE_DIR: /home/opencore/.opencore
       # Semantic search via the embeddings service below (when enabled).
       # Leave unset to fall back to keyword-only (BM25).
-      opencore_EMBED_BASE_URL: ${opencore_EMBED_BASE_URL-http://embeddings:8181/v1}
-      opencore_EMBED_MODEL: ${opencore_EMBED_MODEL:-harrier}
+      OPENCORE_EMBED_BASE_URL: ${OPENCORE_EMBED_BASE_URL:-}
+      OPENCORE_EMBED_MODEL: ${OPENCORE_EMBED_MODEL:-harrier}
     volumes:
       # Persist opencore state (long-term memory, gateway allowlist/pairing).
       - opencore-state:/home/opencore/.opencore
@@ -51,7 +52,8 @@ services:
       --embedding --port 8181 --host 0.0.0.0
     volumes:
       - llama-models:/root/.cache/llama.cpp
-    # Internal only; reached by the gateway at http://embeddings:8181
+    # Internal only; set OPENCORE_EMBED_BASE_URL=http://embeddings:8181/v1
+    # for the gateway to use it.
 
 volumes:
   opencore-state:

@@ -4,7 +4,7 @@ mode: primary
 temperature: 0.2
 permission:
   edit: ask
-  bash: ask
+  bash: deny
   webfetch: allow
   lsp: allow
 ---

@@ -1,0 +1,8 @@
+{
+  "name": "opencore-opencode-extensions",
+  "private": true,
+  "description": "opencore local opencode plugins (memory, budget) and agents.",
+  "dependencies": {
+    "@opencode-ai/plugin": "1.17.11"
+  }
+}

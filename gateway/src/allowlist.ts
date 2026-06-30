@@ -23,10 +23,13 @@ interface StoreData {
   members: number[] // Telegram user IDs (approved, non-admin)
 }
 
-const file = join(getStateDir(), "allowlist.json")
+function storeFile(): string {
+  return join(getStateDir(), "allowlist.json")
+}
 
 function load(): StoreData {
   try {
+    const file = storeFile()
     if (existsSync(file)) {
       const parsed = JSON.parse(readFileSync(file, "utf8"))
       return {
@@ -43,7 +46,7 @@ function load(): StoreData {
 
 function save(data: StoreData): void {
   mkdirSync(getStateDir(), { recursive: true })
-  writeFileSync(file, JSON.stringify(data, null, 2), "utf8")
+  writeFileSync(storeFile(), JSON.stringify(data, null, 2), "utf8")
 }
 
 export class Allowlist {

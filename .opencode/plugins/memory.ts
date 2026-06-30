@@ -123,7 +123,7 @@ export const MemoryPlugin: Plugin = async ({ client }) => {
       if (!result.data?.parts) return null
       return extractTextFromParts(result.data.parts)
     } catch (err) {
-      await log(`LLM call failed: ${err?.message ?? "unknown"}`, "warn")
+      await log(`LLM call failed: ${errorMessage(err)}`, "warn")
       return null
     } finally {
       // Clean up temp session
@@ -197,7 +197,8 @@ Rules:
     try {
       // Fetch recent messages
       const msgs = await client.session.messages({ path: { id: sessionId } })
-      const list = Array.isArray(msgs.data) ? msgs.data : msgs.data?.messages
+      const data = msgs.data as any
+      const list = Array.isArray(data) ? data : data?.messages
       if (!Array.isArray(list) || list.length === 0) return
 
       const recent = list.slice(-REFLECTION_WINDOW)
@@ -275,7 +276,7 @@ If nothing is worth remembering, return: []`
         }
       }
     } catch (err) {
-      await log(`Auto-extraction failed: ${err?.message ?? "unknown"}`, "warn")
+      await log(`Auto-extraction failed: ${errorMessage(err)}`, "warn")
     }
   }
 
@@ -450,4 +451,10 @@ function simpleHash(s: string): string {
   let h = 0
   for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0
   return h.toString(36)
+}
+
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message
+  if (typeof err === "string") return err
+  return "unknown"
 }

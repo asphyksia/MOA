@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@opencode-ai/sdk": "1.17.11",
-    "grammy": "1.30.0"
+    "grammy": "1.44.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

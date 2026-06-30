@@ -68,7 +68,8 @@ export const SessionSearchPlugin: Plugin = async ({ client }) => {
     try {
       const msgs = await client.session.messages({ path: { id: sessionId } })
       // The response data IS the array of messages (each {info, parts}).
-      const list = Array.isArray(msgs.data) ? msgs.data : msgs.data?.messages
+      const data = msgs.data as any
+      const list = Array.isArray(data) ? data : data?.messages
       if (!Array.isArray(list) || list.length === 0) return
 
       // Skip if message count hasn't grown since last index for this session.

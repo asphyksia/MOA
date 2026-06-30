@@ -11,15 +11,22 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs"
  * survives restarts.
  *
  * Configure via env vars:
- *   opencore_TOKEN_BUDGET   daily token budget (default: 1_000_000)
- *   opencore_BUDGET_WARN    warn threshold as a fraction 0..1 (default: 0.7)
+ *   OPENCORE_TOKEN_BUDGET   daily token budget (default: 1_000_000)
+ *   OPENCORE_BUDGET_WARN    warn threshold as a fraction 0..1 (default: 0.7)
  *
  * NOTE (V1): this is observational + warning only. It does not hard-stop the
  * session. Hard enforcement is a later step once we settle on UX.
  */
 
-const BUDGET = Number(process.env.opencore_TOKEN_BUDGET ?? 1_000_000)
-const WARN_AT = Number(process.env.opencore_BUDGET_WARN ?? 0.7)
+function envNumber(name: string, fallback: number, legacyName?: string): number {
+  const raw = process.env[name]?.trim() || (legacyName ? process.env[legacyName]?.trim() : "")
+  if (!raw) return fallback
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+const BUDGET = envNumber("OPENCORE_TOKEN_BUDGET", 1_000_000, "opencore_TOKEN_BUDGET")
+const WARN_AT = envNumber("OPENCORE_BUDGET_WARN", 0.7, "opencore_BUDGET_WARN")
 
 const dir = statePath("budget")
 

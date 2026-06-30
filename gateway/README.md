@@ -69,10 +69,10 @@ Telegram  <--outbound polling-->  gateway (this)  <--HTTP 127.0.0.1-->  opencode
 | Var | Default | Notes |
 |-----|---------|-------|
 | `TELEGRAM_BOT_TOKEN` | — | required |
-| `opencore_GATEWAY_PORT` | `4099` | local opencode server port |
-| `opencore_GATEWAY_DEFAULT_AGENT` | `chat` | `chat` \| `dev` \| `plan` |
-| `opencore_GATEWAY_WORKDIR` | cwd | directory the agent operates in |
-| `opencore_OPENCODE_BIN` | auto | explicit path to opencode if needed |
+| `OPENCORE_GATEWAY_PORT` | `4099` | local opencode server port |
+| `OPENCORE_GATEWAY_DEFAULT_AGENT` | `chat` | `chat` \| `dev` \| `plan` |
+| `OPENCORE_GATEWAY_WORKDIR` | cwd | directory the agent operates in |
+| `OPENCORE_OPENCODE_BIN` | auto | explicit path to opencode if needed |
 | `OPENCORE_MODELS` | (built-in list) | comma-separated `id:label` pairs for `/models` |
 | `OPENCORE_DEFAULT_MODEL` | (opencode's model) | default model for new chats |
 
@@ -143,7 +143,7 @@ docker compose logs -f          # find the pairing code, then /pair in Telegram
 - `restart: unless-stopped` keeps it alive across crashes/reboots.
 - State (long-term memory, pairing) persists in the `opencore-state` volume.
 - No inbound ports are published - Telegram is reached via outbound polling.
-- Default agent is `chat` (no shell). Set `opencore_GATEWAY_DEFAULT_AGENT=dev` only
+- Default agent is `chat` (no shell). Set `OPENCORE_GATEWAY_DEFAULT_AGENT=dev` only
   if you accept remote code execution inside the container.
 - To let the agent work on a project, mount it at `/work` (see the commented
   volume in `docker-compose.yml`).

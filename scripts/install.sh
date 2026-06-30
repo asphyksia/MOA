@@ -98,7 +98,7 @@ fi
 #    @opencode-ai/plugin from anywhere.
 echo "Ensuring plugin dependency..."
 if [ ! -f "$DEST/package.json" ]; then
-  printf '{ "dependencies": { "@opencode-ai/plugin": "^1.17.11" } }\n' > "$DEST/package.json"
+  printf '{ "dependencies": { "@opencode-ai/plugin": "1.17.11" } }\n' > "$DEST/package.json"
   echo "  + created package.json"
 fi
 if [ ! -d "$DEST/node_modules/@opencode-ai/plugin" ]; then

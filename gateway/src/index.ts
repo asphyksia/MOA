@@ -15,6 +15,7 @@ import { OpencodeService } from "./opencode-service.js"
  */
 
 const VALID_AGENTS: AgentName[] = ["chat", "dev", "plan"]
+const TELEGRAM_MESSAGE_LIMIT = 4000
 
 async function main() {
   const cfg = loadConfig()
@@ -27,6 +28,7 @@ async function main() {
 
   // Per-chat state: session id + current agent + current model.
   const chats = new Map<number, { sessionId: string; agent: AgentName; model?: string }>()
+  const chatQueues = new Map<number, Promise<void>>()
 
   async function ensureChat(chatId: number): Promise<{ sessionId: string; agent: AgentName; model?: string }> {
     let st = chats.get(chatId)
@@ -36,6 +38,43 @@ async function main() {
       chats.set(chatId, st)
     }
     return st
+  }
+
+  function enqueueChat(chatId: number, task: () => Promise<void>): void {
+    const prev = chatQueues.get(chatId) ?? Promise.resolve()
+    const next = prev
+      .catch(() => {
+        // Keep the queue alive even if the previous task failed.
+      })
+      .then(task)
+      .finally(() => {
+        if (chatQueues.get(chatId) === next) chatQueues.delete(chatId)
+      })
+    chatQueues.set(chatId, next)
+  }
+
+  function splitTelegramMessage(text: string): string[] {
+    if (text.length <= TELEGRAM_MESSAGE_LIMIT) return [text]
+    const chunks: string[] = []
+    let remaining = text
+    while (remaining.length > TELEGRAM_MESSAGE_LIMIT) {
+      let idx = remaining.lastIndexOf("\n", TELEGRAM_MESSAGE_LIMIT)
+      if (idx < TELEGRAM_MESSAGE_LIMIT * 0.6) {
+        idx = remaining.lastIndexOf(" ", TELEGRAM_MESSAGE_LIMIT)
+      }
+      if (idx < TELEGRAM_MESSAGE_LIMIT * 0.6) idx = TELEGRAM_MESSAGE_LIMIT
+      chunks.push(remaining.slice(0, idx).trimEnd())
+      remaining = remaining.slice(idx).trimStart()
+    }
+    if (remaining) chunks.push(remaining)
+    return chunks
+  }
+
+  async function replyLong(ctx: any, text: string): Promise<void> {
+    const chunks = splitTelegramMessage(text || "(empty response)")
+    for (const chunk of chunks) {
+      await ctx.reply(chunk)
+    }
   }
 
   // Pairing code shown only on this console (whoever controls the machine).
@@ -188,17 +227,18 @@ async function main() {
     const text = ctx.message.text
     if (text.startsWith("/")) return // commands handled above
     const chatId = ctx.chat.id
-    const st = await ensureChat(chatId)
-    await ctx.replyWithChatAction("typing")
-    try {
-      const reply = await oc.prompt(st.sessionId, st.agent, text, st.model)
-      console.log(`[opencore-gateway] prompt agent=${st.agent} model=${st.model ?? "default"} session=${st.sessionId.slice(0, 8)}...`)
-      // Telegram hard limit is 4096 chars per message.
-      await ctx.reply(reply.slice(0, 4000))
-    } catch (err: any) {
-      console.error("[opencore-gateway] prompt error:", err?.message ?? err)
-      await ctx.reply("Error talking to opencore: " + (err?.message ?? "unknown"))
-    }
+    enqueueChat(chatId, async () => {
+      const st = await ensureChat(chatId)
+      await ctx.replyWithChatAction("typing")
+      try {
+        const reply = await oc.prompt(st.sessionId, st.agent, text, st.model)
+        console.log(`[opencore-gateway] prompt agent=${st.agent} model=${st.model ?? "default"} session=${st.sessionId.slice(0, 8)}...`)
+        await replyLong(ctx, reply)
+      } catch (err: any) {
+        console.error("[opencore-gateway] prompt error:", err?.message ?? err)
+        await ctx.reply("Error talking to opencore: " + (err?.message ?? "unknown"))
+      }
+    })
   })
 
   bot.catch((err) => {
