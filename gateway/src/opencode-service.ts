@@ -112,7 +112,15 @@ export class OpencodeService {
   async prompt(sessionId: string, agent: AgentName, text: string, model?: string): Promise<string> {
     if (!this.client) throw new Error("service not started")
     const body: any = { agent, parts: [{ type: "text", text }] }
-    if (model) body.model = model
+    if (model) {
+      // opencode SDK expects { providerID, modelID }, not "provider/model" string
+      const slashIdx = model.indexOf("/")
+      if (slashIdx > 0) {
+        body.model = { providerID: model.slice(0, slashIdx), modelID: model.slice(slashIdx + 1) }
+      } else {
+        body.model = model
+      }
+    }
     const res = await this.client.session.prompt({
       path: { id: sessionId },
       body,
@@ -122,7 +130,12 @@ export class OpencodeService {
     const texts = parts
       .filter((p: any) => p.type === "text" && typeof p.text === "string")
       .map((p: any) => p.text)
-    return texts.join("\n").trim() || "(no text response)"
+    if (texts.length === 0) {
+      // Surface any error from the response so we can debug
+      const err = data?.error ?? data?.message ?? ""
+      return "(no text response)" + (err ? ` [${err}]` : "")
+    }
+    return texts.join("\n").trim()
   }
 
   stop(): void {

@@ -192,6 +192,7 @@ async function main() {
     await ctx.replyWithChatAction("typing")
     try {
       const reply = await oc.prompt(st.sessionId, st.agent, text, st.model)
+      console.log(`[opencore-gateway] prompt agent=${st.agent} model=${st.model ?? "default"} session=${st.sessionId.slice(0, 8)}...`)
       // Telegram hard limit is 4096 chars per message.
       await ctx.reply(reply.slice(0, 4000))
     } catch (err: any) {
