@@ -1,4 +1,4 @@
-import { homedir } from "node:os"
+import { statePath } from "./state-dir"
 import { join } from "node:path"
 import { mkdirSync } from "node:fs"
 
@@ -45,7 +45,7 @@ export type SearchHit = {
   createdAt: number
 }
 
-const dir = join(homedir(), ".opencore", "sessions")
+const dir = statePath("sessions")
 const dbPath = join(dir, "sessions.db")
 
 type DB = any

@@ -1,11 +1,26 @@
-import { homedir } from "node:os"
 import { join } from "node:path"
+import { homedir } from "node:os"
 import { readFileSync, existsSync } from "node:fs"
 
 /**
  * Gateway configuration, loaded from environment (.env is read manually to
  * avoid an extra dependency).
  */
+
+/**
+ * Resolve the gateway's state directory (pairing/allowlist).
+ *
+ * Precedence: OPENCORE_STATE_DIR env var > ~/.opencore/gateway.
+ * Resolved lazily so OPENCORE_STATE_DIR set in .env is honored.
+ */
+let _stateDir: string | null = null
+export function getStateDir(): string {
+  if (_stateDir) return _stateDir
+  _stateDir = process.env.OPENCORE_STATE_DIR
+    ? join(process.env.OPENCORE_STATE_DIR, "gateway")
+    : join(homedir(), ".opencore", "gateway")
+  return _stateDir
+}
 
 export type AgentName = "chat" | "dev" | "plan"
 
@@ -42,6 +57,8 @@ function parseAgent(v: string | undefined): AgentName {
 
 export function loadConfig(): GatewayConfig {
   loadDotEnv()
+  // Resolve stateDir after .env is loaded so OPENCORE_STATE_DIR in .env works.
+  getStateDir()
 
   const telegramToken = process.env.TELEGRAM_BOT_TOKEN?.trim() ?? ""
   if (!telegramToken) {
@@ -58,6 +75,3 @@ export function loadConfig(): GatewayConfig {
     opencodeBin: process.env.opencore_OPENCODE_BIN?.trim() || undefined,
   }
 }
-
-/** Where the gateway stores its state (pairing/allowlist). */
-export const stateDir = join(homedir(), ".opencore", "gateway")

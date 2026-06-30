@@ -1,7 +1,7 @@
 import { join } from "node:path"
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs"
 import { randomBytes } from "node:crypto"
-import { stateDir } from "./config.js"
+import { getStateDir } from "./config.js"
 
 /**
  * Pairing + allowlist store.
@@ -23,7 +23,7 @@ interface StoreData {
   members: number[] // Telegram user IDs (approved, non-admin)
 }
 
-const file = join(stateDir, "allowlist.json")
+const file = join(getStateDir(), "allowlist.json")
 
 function load(): StoreData {
   try {
@@ -42,7 +42,7 @@ function load(): StoreData {
 }
 
 function save(data: StoreData): void {
-  mkdirSync(stateDir, { recursive: true })
+  mkdirSync(getStateDir(), { recursive: true })
   writeFileSync(file, JSON.stringify(data, null, 2), "utf8")
 }
 

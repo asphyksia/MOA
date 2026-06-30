@@ -23,7 +23,7 @@
  * - Small in-memory cache avoids re-embedding identical query text.
  */
 
-import { homedir } from "node:os"
+import { statePath } from "./state-dir"
 import { join } from "node:path"
 import { readFileSync, existsSync } from "node:fs"
 
@@ -41,7 +41,7 @@ function loadConfig(): EmbedConfig {
   // File config (so the desktop app / daemon work without shell env).
   let file: Partial<EmbedConfig> = {}
   try {
-    const path = join(homedir(), ".opencore", "embeddings.json")
+    const path = statePath("embeddings.json")
     if (existsSync(path)) file = JSON.parse(readFileSync(path, "utf8"))
   } catch {
     /* ignore malformed file */

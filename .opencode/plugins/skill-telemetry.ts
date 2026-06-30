@@ -1,6 +1,6 @@
 import { type Plugin, tool } from "@opencode-ai/plugin"
-import { homedir } from "node:os"
 import { join } from "node:path"
+import { statePath } from "./lib/state-dir"
 import {
   readFileSync,
   writeFileSync,
@@ -32,7 +32,7 @@ import {
  * rebuilt as a fresh empty map. No state is required to bootstrap.
  */
 
-const skillsDir = join(homedir(), ".opencore", "skills")
+const skillsDir = statePath("skills")
 const usageFile = join(skillsDir, ".usage.json")
 const lockFile = join(skillsDir, ".usage.json.lock")
 

@@ -1,6 +1,6 @@
 import type { Plugin } from "@opencode-ai/plugin"
-import { homedir } from "node:os"
 import { join } from "node:path"
+import { statePath } from "./lib/state-dir"
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs"
 
 /**
@@ -21,7 +21,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs"
 const BUDGET = Number(process.env.opencore_TOKEN_BUDGET ?? 1_000_000)
 const WARN_AT = Number(process.env.opencore_BUDGET_WARN ?? 0.7)
 
-const dir = join(homedir(), ".opencore", "budget")
+const dir = statePath("budget")
 
 function today(): string {
   return new Date().toISOString().slice(0, 10)

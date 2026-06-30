@@ -1,4 +1,4 @@
-import { homedir } from "node:os"
+import { statePath } from "./state-dir"
 import { join } from "node:path"
 import { mkdirSync } from "node:fs"
 import { createHash } from "node:crypto"
@@ -37,7 +37,7 @@ export type SearchHit = {
   content: string
 }
 
-const baseDir = join(homedir(), ".opencore", "codebase")
+const baseDir = statePath("codebase")
 
 const dbCache = new Map<string, any>()
 

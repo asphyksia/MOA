@@ -1,4 +1,4 @@
-import { homedir } from "node:os"
+import { statePath } from "./state-dir"
 import { join } from "node:path"
 import { mkdirSync, readFileSync, existsSync, renameSync, writeFileSync, unlinkSync } from "node:fs"
 import { createHash } from "node:crypto"
@@ -35,7 +35,7 @@ export type Fact = {
   source?: string
 }
 
-const dir = join(homedir(), ".opencore", "memory")
+const dir = statePath("memory")
 const dbPath = join(dir, "memory.db")
 const legacyJsonl = join(dir, "long-term.jsonl")
 
